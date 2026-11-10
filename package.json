@@ -1,0 +1,16 @@
+{
+  "name": "appinside",
+  "version": "1.2.0",
+  "private": true,
+  "description": "AppInside \u2013 a mini-OS environment with Data Lab and Voice Notes",
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capgo/capacitor-updater": "lts-v7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

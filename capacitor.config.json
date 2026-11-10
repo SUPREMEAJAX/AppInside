@@ -1,0 +1,16 @@
+{
+  "appId": "com.appinside.app",
+  "appName": "AppInside",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false
+    },
+    "CapacitorHttp": {
+      "enabled": false
+    }
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

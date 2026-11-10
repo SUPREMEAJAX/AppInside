@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AppInside – Data Lab prototype</title>
+<style>
+  :root{
+    --bg:#070914; --panel:rgba(255,255,255,.065); --panel2:rgba(255,255,255,.085); --text:#f4f6ff; --muted:#a7b0d0;
+    --accent:#7b6cff; --accent2:#2ee6a8; --warn:#ff5c7a; --line:rgba(255,255,255,.10); --fire:#ff8a3d;
+    --glass-b:1px solid rgba(255,255,255,.14); --glass-hi:inset 0 1px 0 rgba(255,255,255,.18);
+    --spring:cubic-bezier(.34,1.56,.64,1); --grad:linear-gradient(135deg,#7b6cff,#2ee6a8);
+  }
+  *{box-sizing:border-box}
+  html{background:var(--bg)}
+  html,body{margin:0;height:100%;color:var(--text);
+    font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  #os{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;padding:10px 18px;font-size:13px;color:var(--muted)}
+  /* Home screen */
+  #home{flex:1;padding:12px 18px 24px}
+  #home h1{font-size:22px;margin:8px 0 2px}
+  #home p.sub{color:var(--muted);margin:0 0 22px;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px 10px}
+  .icon{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;color:var(--text);cursor:pointer;font:inherit;font-size:12px}
+  .icon .tile{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;font-size:26px;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .icon.soon{opacity:.45}
+  .dock{margin-top:28px;background:var(--panel);border-radius:18px;padding:14px;font-size:13px;color:var(--muted)}
+  /* App window */
+  #app{display:none;flex:1;flex-direction:column}
+  .appbar{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+  .appbar button.back{background:var(--panel2);border:0;color:var(--text);border-radius:10px;padding:6px 12px;font:inherit;cursor:pointer}
+  .appbar h2{font-size:17px;margin:0;flex:1}
+  #appbody{padding:14px}
+  /* Data Lab */
+  .tabs{display:flex;gap:6px;margin-bottom:14px}
+  .tabs button{flex:1;padding:9px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .card{background:var(--panel);border-radius:14px;padding:14px;margin-bottom:12px}
+  .card h3{margin:0 0 10px;font-size:15px}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit}
+  textarea{min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .btn{display:inline-block;margin-top:12px;padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn.ghost{background:var(--panel2);color:var(--text)}
+  .btn.danger{background:transparent;color:var(--warn);border:1px solid var(--warn)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat{background:var(--panel2);border-radius:10px;padding:10px}
+  .stat .k{font-size:11px;color:var(--muted)}.stat .v{font-size:17px;font-weight:700;margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--muted);font-weight:500}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  td .x{background:none;border:0;color:var(--warn);cursor:pointer;font-size:15px}
+  canvas{width:100%;height:200px;display:block}
+  .msg{font-size:13px;color:var(--accent2);margin-top:8px;min-height:18px}
+  .muted{color:var(--muted);font-size:13px}
+  .insight{padding:8px 10px;border-left:3px solid var(--accent2);background:var(--panel2);border-radius:6px;margin:6px 0;font-size:13px}
+
+  /* Music: global mini-player */
+  #mini{position:fixed;left:0;right:0;bottom:0;z-index:5;display:none;padding:0 10px calc(10px + env(safe-area-inset-bottom))}
+  #mini .bar{max-width:460px;margin:0 auto;background:#262d4a;border-radius:14px;padding:8px 10px;display:flex;align-items:center;gap:10px;box-shadow:0 -4px 20px rgba(0,0,0,.4)}
+  #mini .t{flex:1;min-width:0;cursor:pointer}
+  #mini .t b,#mini .t span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #mini .t span{font-size:12px;color:var(--muted)}
+  #mini button,.pc button{background:none;border:0;color:var(--text);font-size:22px;cursor:pointer;padding:4px 6px}
+  #mini .prog{height:3px;background:var(--line);border-radius:2px;margin-top:4px}
+  #mini .prog i{display:block;height:100%;background:var(--accent);width:0}
+  body.has-mini #os{padding-bottom:84px}
+  .pc{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:8px}
+  .pc .big{font-size:34px;background:var(--accent);border-radius:50%;width:62px;height:62px}
+  .pc .tog{opacity:.35}.pc .tog.on{opacity:1}
+  input[type=range]{padding:0;accent-color:var(--accent)}
+  .track{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+  .track.now{color:var(--accent2)}
+  .track .nm{flex:1;min-width:0}.track .nm div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ===== Liquid-glass + Material-Expressive layer ===== */
+  body::before{content:"";position:fixed;inset:-20%;z-index:-2;
+    background:radial-gradient(40% 35% at 20% 20%,#5b3cff 0%,transparent 60%),
+               radial-gradient(35% 30% at 85% 15%,#ff3d7f 0%,transparent 60%),
+               radial-gradient(45% 40% at 70% 85%,#00c896 0%,transparent 60%),
+               radial-gradient(35% 35% at 10% 90%,#ff8a3d 0%,transparent 60%),#070914;
+    filter:blur(30px) saturate(140%);opacity:.9;animation:aurora 26s ease-in-out infinite alternate}
+  body::after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(7,9,20,.15),rgba(7,9,20,.55))}
+  @keyframes aurora{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(4%,-3%) rotate(8deg) scale(1.05)}100%{transform:translate(-4%,3%) rotate(-6deg)}}
+  .card,.appbar,#mini .bar,.tabs button,.stat,.glass{background:var(--panel);border:var(--glass-b);box-shadow:var(--glass-hi),0 10px 30px rgba(0,0,0,.25);
+    -webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%)}
+  .card{border-radius:22px}.stat{border-radius:14px;box-shadow:var(--glass-hi)}
+  .appbar{background:rgba(10,12,28,.55);border-width:0 0 1px 0;border-radius:0}
+  input,select,textarea{background:rgba(255,255,255,.07);border:var(--glass-b)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(123,108,255,.3)}
+  option{background:#151a30;color:var(--text)}
+  .btn{background:var(--grad);border-radius:999px;padding:11px 18px;box-shadow:0 6px 20px rgba(123,108,255,.35);transition:transform .35s var(--spring)}
+  .btn.ghost{background:var(--panel2);box-shadow:var(--glass-hi);border:var(--glass-b)}
+  .btn.danger{background:transparent;box-shadow:none}
+  .btn:active,.tabs button:active,.icon:active .tile,.track:active{transform:scale(.92)}
+  .tabs button{border-radius:999px;transition:transform .35s var(--spring),background .2s}
+  .tabs button.on{background:var(--grad);border-color:transparent;color:#fff;box-shadow:0 6px 18px rgba(123,108,255,.35)}
+  .icon .tile{border-radius:20px;position:relative;overflow:hidden;transition:transform .45s var(--spring);box-shadow:0 8px 22px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.35)}
+  .icon .tile::after{content:"";position:absolute;inset:0;background:linear-gradient(160deg,rgba(255,255,255,.35),transparent 45%)}
+  #app.opening{animation:appIn .55s var(--spring)}
+  @keyframes appIn{from{opacity:0;transform:scale(.88) translateY(18px)}to{opacity:1;transform:none}}
+  #home.showing{animation:homeIn .45s var(--spring)}
+  @keyframes homeIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+  .card{animation:rise .5s var(--spring) both}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* Home: expressive type + bento widgets */
+  .hello{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin:6px 0 4px}
+  .hello span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .bento{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 24px}
+  .w{border-radius:24px;padding:14px;cursor:pointer;position:relative;overflow:hidden;transition:transform .45s var(--spring);animation:rise .55s var(--spring) both}
+  .w:active{transform:scale(.95)}.w.wide{grid-column:span 2}
+  .w .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+  .w .big{font-size:34px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+  .w .sm{font-size:13px;color:var(--muted);margin-top:2px}
+  .w.today{background:linear-gradient(135deg,rgba(46,230,168,.22),rgba(123,108,255,.18))}
+  .w.today.neg{background:linear-gradient(135deg,rgba(255,92,122,.25),rgba(123,108,255,.15))}
+  .flame{font-size:30px;display:inline-block;animation:flick 1.6s ease-in-out infinite}
+  @keyframes flick{0%,100%{transform:scale(1) rotate(-3deg)}50%{transform:scale(1.12) rotate(3deg)}}
+  .ring{width:76px;height:76px;transform:rotate(-90deg)}
+  .ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+  .ring .fg{transition:stroke-dashoffset 1.2s var(--spring)}
+  .eq{display:inline-flex;gap:2px;align-items:flex-end;height:16px;margin-right:6px}
+  .eq i{width:3px;background:var(--accent2);border-radius:2px;animation:eq 1s ease-in-out infinite}
+  .eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+  .eq.paused i{animation:none;height:4px}
+  @keyframes eq{0%,100%{height:4px}50%{height:16px}}
+  .quote{font-size:17px;font-weight:700;line-height:1.3}
+  #toast{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translate(-50%,-140%);z-index:20;padding:12px 18px;border-radius:999px;
+    font-weight:700;max-width:90%;text-align:center;transition:transform .55s var(--spring)}
+  #toast.show{transform:translate(-50%,0)}
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:19}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="os">
+  <div class="statusbar"><span id="clock">--:--</span><span>AppInside OS</span></div>
+
+  <!-- HOME SCREEN (the "environment") -->
+  <section id="home">
+    <div class="hello" id="hello"></div>
+    <p class="sub" id="subline">Your world, inside your phone.</p>
+    <div class="bento" id="bento"></div>
+    <div class="grid" id="grid"></div>
+    <div class="dock" id="storageNote"></div>
+  </section>
+
+  <!-- GLOBAL MINI PLAYER (persists across mini-apps) -->
+  <div id="toast" class="glass"></div><canvas id="fx"></canvas>
+  <div id="mini"><div class="bar">
+    <button id="mPrev" aria-label="Previous">⏮</button><button id="mPlay" aria-label="Play">▶️</button><button id="mNext" aria-label="Next">⏭</button>
+    <div class="t" id="mOpen"><b id="mTitle"></b><span id="mArtist"></span><div class="prog"><i id="mProg"></i></div></div>
+  </div></div>
+  <!-- MINI-APP WINDOW -->
+  <section id="app">
+    <div class="appbar"><button class="back" id="backBtn">‹ Home</button><h2 id="appTitle"></h2></div>
+    <div id="appbody"></div>
+  </section>
+</div>
+
+<script>
+/* ============ STORAGE LAYER (shared by all mini-apps) ============ */
+const Store = (() => {
+  let mem = {}, persistent = true; const hooks = [];
+  try { const t='__t'; localStorage.setItem(t,'1'); localStorage.removeItem(t); } catch(e){ persistent=false; }
+  return {
+    persistent,
+    get(ns, fallback){ try{ if(persistent){ const v=localStorage.getItem('ai:'+ns); return v?JSON.parse(v):fallback; } }catch(e){} return mem[ns] ?? fallback; },
+    set(ns, val){ let old; try{ old=this.get(ns); }catch(e){}
+      mem[ns]=val; try{ if(persistent) localStorage.setItem('ai:'+ns, JSON.stringify(val)); }catch(e){}
+      hooks.forEach(h=>{ try{ h(ns,old,val); }catch(e){} }); },
+    onChange(f){ hooks.push(f); }
+  };
+})();
+
+/* ============ FX: haptics, toast, confetti ============ */
+const FX = (() => {
+  let tm; const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const buzz=ms=>{ try{ navigator.vibrate&&navigator.vibrate(ms); }catch(e){} };
+  function toast(msg,color){ const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.style.color=color||'#fff';
+    t.classList.add('show'); buzz(20); clearTimeout(tm); tm=setTimeout(()=>t.classList.remove('show'),2800); }
+  function confetti(n){ if(reduced) return; const cv=document.getElementById('fx'), g=cv.getContext('2d'), dpr=devicePixelRatio||1;
+    cv.width=innerWidth*dpr; cv.height=innerHeight*dpr; g.scale(dpr,dpr); buzz([30,40,30]);
+    const cols=['#7b6cff','#2ee6a8','#ff5c7a','#ff8a3d','#ffd84d','#ffffff'];
+    const ps=Array.from({length:n},()=>({x:innerWidth/2,y:innerHeight*0.35,vx:(Math.random()-.5)*14,vy:-Math.random()*14-4,r:Math.random()*6+3,
+      c:cols[Math.random()*cols.length|0],a:Math.random()*6,va:(Math.random()-.5)*.4,life:0}));
+    const step=()=>{ g.clearRect(0,0,innerWidth,innerHeight); let alive=0;
+      ps.forEach(p=>{ p.life++; p.vy+=.35; p.vx*=.99; p.x+=p.vx; p.y+=p.vy; p.a+=p.va; if(p.y<innerHeight+20){ alive++;
+        g.save(); g.translate(p.x,p.y); g.rotate(p.a); g.fillStyle=p.c; g.globalAlpha=Math.max(0,1-p.life/140); g.fillRect(-p.r/2,-p.r/4,p.r,p.r/2); g.restore(); } });
+      if(alive) requestAnimationFrame(step); else g.clearRect(0,0,innerWidth,innerHeight); };
+    step(); }
+  return {toast,confetti,buzz};
+})();
+
+/* P&L stats shared by the P&L app and home widgets */
+const PnlStats = {
+  iso:d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10),
+  net:e=>(+e.gross||0)-(+e.charges||0),
+  // consecutive logged trading days (weekends skipped); today may still be pending
+  streak(days){ const d=new Date(); let n=0;
+    if(!days[this.iso(d)]) d.setDate(d.getDate()-1);
+    for(let i=0;i<400;i++){ const wd=d.getDay(); if(wd===0||wd===6){ d.setDate(d.getDate()-1); continue; }
+      if(days[this.iso(d)]){ n++; d.setDate(d.getDate()-1); } else break; }
+    return n; },
+  month(days){ const pre=this.iso(new Date()).slice(0,7); return Object.entries(days).filter(([k])=>k.startsWith(pre)).reduce((s,[,e])=>s+this.net(e),0); }
+};
+
+/* ============ VERSION, NETWORK, SYNC, MASTER HUB, UPDATES ============ */
+const APP_VERSION='1.2.0';
+const isNative=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+const Plug=n=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins[n];
+const verCmp=(a,b)=>{ const x=String(a).split('.').map(Number), y=String(b).split('.').map(Number); for(let i=0;i<3;i++){ const d=(x[i]||0)-(y[i]||0); if(d) return d; } return 0; };
+const rid=n=>Array.from(crypto.getRandomValues(new Uint8Array(n)),b=>b.toString(16).padStart(2,'0')).join('');
+
+const Net = {
+  // Native HTTP on the phone (needed to reach the master over plain http on Wi-Fi); fetch in a browser
+  async req(url, method, body, token){
+    const headers={'Content-Type':'application/json'}; if(token) headers.Authorization='Bearer '+token;
+    const H=Plug('CapacitorHttp');
+    if(isNative()&&H){
+      const r=await H.request({url,method:method||'GET',headers,data:body,connectTimeout:4000,readTimeout:15000});
+      let d=r.data; if(typeof d==='string'){ try{ d=JSON.parse(d); }catch(e){} }
+      if(r.status>=400) throw new Error((d&&d.error)||('HTTP '+r.status)); return d;
+    }
+    const ac=new AbortController(), t=setTimeout(()=>ac.abort(),8000);
+    try{ const r=await fetch(url,{method:method||'GET',headers,body:body?JSON.stringify(body):undefined,signal:ac.signal});
+      const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||('HTTP '+r.status)); return d; }
+    catch(e){ throw new Error(e.name==='AbortError'?'Master not reachable':e.message); }
+    finally{ clearTimeout(t); }
+  }
+};
+
+/* Which data syncs, and how each store maps to individual items (so two devices can edit different days safely) */
+const ADAPT = {
+  pnl:{ empty:{days:{},taxRate:30},
+    to:v=>{ const o={}; v=v||{}; Object.entries(v.days||{}).forEach(([d,e])=>o['d:'+d]=e); if('taxRate' in v) o['s:taxRate']=v.taxRate; if('target' in v) o['s:target']=v.target; return o; },
+    from:m=>{ const v={days:{},taxRate:30}; for(const [k,x] of Object.entries(m)){ if(k.startsWith('d:')) v.days[k.slice(2)]=x; else v[k.slice(2)]=x; } return v; } },
+  datalab:{ empty:{records:[]},
+    to:v=>Object.fromEntries(((v&&v.records)||[]).map(r=>[String(r.id),r])),
+    from:m=>({records:Object.values(m).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}) },
+  voicenotes:{ empty:[],
+    to:v=>Object.fromEntries((v||[]).map(n=>[String(n.id),n])),
+    from:m=>Object.values(m).sort((a,b)=>String(b.created).localeCompare(String(a.created))) }
+};
+
+const Sync = (() => {
+  let applying=false, inflight=false, timer=null;
+  const cfg=()=>Store.get('sync:cfg',{role:'solo'}), setCfg=c=>Store.set('sync:cfg',c);
+  const outbox=()=>Store.get('sync:outbox',{});
+  const served=()=>!!window.APPINSIDE_SERVED; // page delivered by the master (e.g. iPhone Safari)
+  // record every change to synced data as an item-level change
+  Store.onChange((ns,oldV,newV)=>{
+    if(applying||!ADAPT[ns]) return; const A=ADAPT[ns], a=A.to(oldV===undefined?A.empty:oldV), b=A.to(newV), now=Date.now(), ob=outbox(); let n=0;
+    for(const k in b) if(JSON.stringify(a[k])!==JSON.stringify(b[k])){ (ob[ns]=ob[ns]||{})[k]={ts:now,val:b[k]}; n++; }
+    for(const k in a) if(!(k in b)){ (ob[ns]=ob[ns]||{})[k]={ts:now,del:true}; n++; }
+    if(n){ Store.set('sync:outbox',ob); soon(); }
+  });
+  // first connection: offer everything this device already has (oldest timestamp, so the master's copy wins on clashes)
+  function snapshot(){ const ob=outbox();
+    for(const ns in ADAPT){ const items=ADAPT[ns].to(Store.get(ns,ADAPT[ns].empty)); for(const k in items) if(!(ob[ns]&&ob[ns][k])) (ob[ns]=ob[ns]||{})[k]={ts:1,val:items[k]}; }
+    Store.set('sync:outbox',ob); }
+  function apply(items){ let total=0; const ob=outbox();
+    for(const ns in items){ const A=ADAPT[ns]; if(!A) continue; const cur=A.to(Store.get(ns,A.empty)); let n=0;
+      for(const [k,it] of Object.entries(items[ns])){ const pend=ob[ns]&&ob[ns][k]; if(pend&&pend.ts>it.ts) continue;
+        if(it.del){ if(k in cur){ delete cur[k]; n++; } } else if(JSON.stringify(cur[k])!==JSON.stringify(it.val)){ cur[k]=it.val; n++; } }
+      if(n){ applying=true; try{ Store.set(ns,A.from(cur)); } finally{ applying=false; } total+=n; } }
+    return total; }
+  function clearSent(sent){ const ob=outbox();
+    for(const ns in sent) for(const k in sent[ns]) if(ob[ns]&&ob[ns][k]&&ob[ns][k].ts===sent[ns][k].ts) delete ob[ns][k];
+    for(const ns in ob) if(!Object.keys(ob[ns]).length) delete ob[ns];
+    Store.set('sync:outbox',ob); }
+  const pendingCount=()=>Object.values(outbox()).reduce((a,o)=>a+Object.keys(o).length,0);
+  async function run(quiet){
+    const c=cfg(); if(inflight||c.role==='solo'||(c.role==='child'&&!c.token)) return null;
+    inflight=true; const sent=outbox();
+    try{
+      let res;
+      if(c.role==='master') res=Hub.merge('master',{since:c.lastSeq||0,changes:sent});
+      else res=await Net.req(c.hub+'/api/sync','POST',{since:c.lastSeq||0,changes:sent,device:{name:c.name,version:APP_VERSION}},c.token);
+      clearSent(sent); const n=apply(res.items||{});
+      const c2=cfg(); c2.lastSeq=res.seq; c2.lastSync=Date.now(); c2.lastError=''; c2.masterVersion=res.version; setCfg(c2);
+      if(n){ if(!quiet) FX.toast(`🔄 Synced ${n} change${n>1?'s':''}`); refreshUI(); }
+      if(c.role==='child'&&res.version) Updates.offer(res.version);
+      return n;
+    }catch(e){ const c2=cfg(); c2.lastError=e.message; setCfg(c2); return null; }
+    finally{ inflight=false; }
+  }
+  function soon(){ clearTimeout(timer); timer=setTimeout(()=>run(true),2500); }
+  function refreshUI(){
+    const ae=document.activeElement; if(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)) return;
+    if(document.getElementById('home').style.display!=='none'){ typeof drawHome==='function'&&drawHome(); return; }
+    const id=location.hash.slice(1); if(id&&id!=='music'&&id!=='settings') openApp(id,true);
+  }
+  async function pair(hub,code,name){
+    hub=hub.trim().replace(/\/+$/,''); if(!/^https?:\/\//.test(hub)) hub='http://'+hub; if(!/:\d+$/.test(hub.replace(/^https?:\/\//,''))) hub+=':8787';
+    const r=await Net.req(hub+'/api/pair','POST',{code:String(code).trim(),name});
+    setCfg({role:'child',hub,token:r.token,deviceId:r.deviceId,name,lastSeq:0,paired:Date.now()});
+    snapshot(); await run(); return r;
+  }
+  function start(){
+    const c=cfg();
+    if(served()&&c.role!=='child'){ setCfg({role:'child',hub:location.origin,name:'iPhone (Safari)'}); }
+    run(true); setInterval(()=>run(true),45000);
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) run(); });
+  }
+  return {cfg,setCfg,run,pair,start,snapshot,pendingCount,served,
+    unpair(){ setCfg({role:'solo'}); Store.set('sync:outbox',{}); }};
+})();
+
+/* MASTER: keeps the master copy, answers phones over Wi-Fi (Android tablet with the LocalServer plugin) */
+const Hub = (() => {
+  const db=()=>Store.get('hub:db',{seq:0,items:{},devices:{},code:null,codeExp:0,fails:0,lockUntil:0}), save=d=>Store.set('hub:db',d);
+  let running=false, info={addresses:[],port:8787}, listener=null, bundleCache=null;
+  function merge(devId,{since,changes}){ const d=db();
+    for(const ns in changes||{}){ if(!ADAPT[ns]) continue;
+      for(const [k,c] of Object.entries(changes[ns])){ const cur=d.items[ns]&&d.items[ns][k];
+        if(!cur||c.ts>cur.ts){ d.seq++; (d.items[ns]=d.items[ns]||{})[k]=c.del?{ts:c.ts,del:true,seq:d.seq}:{ts:c.ts,val:c.val,seq:d.seq}; } } }
+    const out={}; for(const ns in d.items) for(const [k,it] of Object.entries(d.items[ns])) if(it.seq>(since||0)) (out[ns]=out[ns]||{})[k]=it.del?{ts:it.ts,del:true}:{ts:it.ts,val:it.val};
+    save(d); return {seq:d.seq,items:out,version:APP_VERSION}; }
+  function newCode(){ const d=db(); d.code=String(100000+(crypto.getRandomValues(new Uint32Array(1))[0]%900000)); d.codeExp=Date.now()+10*60e3; d.fails=0; save(d); return d.code; }
+  function pair({code,name}){ const d=db(); if(Date.now()<d.lockUntil) return {status:429,json:{error:'Too many wrong codes. Wait 5 minutes.'}};
+    if(!d.code||Date.now()>d.codeExp||String(code)!==d.code){ d.fails=(d.fails||0)+1; if(d.fails>=8){ d.lockUntil=Date.now()+5*60e3; d.fails=0; } save(d); return {status:403,json:{error:'Wrong or expired pairing code'}}; }
+    const token=rid(24), id=rid(6); d.devices[id]={name:String(name||'Device').slice(0,40),token,paired:Date.now(),seen:Date.now()}; d.code=null; save(d);
+    setTimeout(()=>{ FX.toast(`📱 ${d.devices[id].name} paired`); window.dispatchEvent(new Event('hub-change')); },0);
+    return {json:{token,deviceId:id,version:APP_VERSION}}; }
+  function auth(h){ const t=String((h&&h.authorization)||'').replace(/^Bearer\s+/i,''), d=db();
+    const id=Object.keys(d.devices).find(k=>d.devices[k].token===t); if(!t||!id) return null; return id; }
+  // build an update bundle (zip) from the app this master is running
+  async function bundle(){ if(bundleCache&&bundleCache.v===APP_VERSION) return bundleCache.b64;
+    const html=await (await fetch('index.html',{cache:'no-store'})).text(); const bytes=Zip.store([{name:'index.html',data:new TextEncoder().encode(html)}]);
+    let bin=''; for(let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));
+    bundleCache={v:APP_VERSION,b64:btoa(bin)}; return bundleCache.b64; }
+  async function route(r){
+    const path=(r.path||'/').split('?')[0], m=r.method;
+    if(m==='OPTIONS') return {status:204,text:''};
+    if(m==='GET'&&(path==='/'||path==='/index.html')){
+      const html=await (await fetch('index.html',{cache:'no-store'})).text();
+      return {type:'text/html; charset=utf-8',text:html.replace('<head>','<head><scr'+'ipt>window.APPINSIDE_SERVED=1</scr'+'ipt>')}; }
+    if(m==='GET'&&path==='/api/info') return {json:{hub:true,name:'AppInside Master',version:APP_VERSION}};
+    if(m==='POST'&&path==='/api/pair'){ let b={}; try{ b=JSON.parse(r.body||'{}'); }catch(e){} return pair(b); }
+    if(m==='POST'&&path==='/api/sync'){ const id=auth(r.headers); if(!id) return {status:401,json:{error:'Not paired. Pair again with a new code.'}};
+      let b={}; try{ b=JSON.parse(r.body||'{}'); }catch(e){ return {status:400,json:{error:'Bad request'}}; }
+      const res=merge(id,b), d=db(); if(d.devices[id]){ d.devices[id].seen=Date.now(); d.devices[id].version=(b.device&&b.device.version)||''; save(d); }
+      setTimeout(()=>{ Sync.run(); window.dispatchEvent(new Event('hub-change')); },50); return {json:res}; }
+    if(m==='GET'&&/^\/bundle\/[\d.]+\.zip$/.test(path)) return {type:'application/zip',b64:await bundle()};
+    return {status:404,json:{error:'Not found'}};
+  }
+  async function start(){ const LS=Plug('LocalServer'); if(!LS) throw new Error('Master mode needs the installed Android app');
+    if(!listener) listener=await LS.addListener('request',async r=>{ let res; try{ res=await route(r); }catch(e){ res={status:500,json:{error:e.message}}; }
+      LS.respond({id:r.id,status:res.status||200,contentType:res.type||'application/json',body:res.json?JSON.stringify(res.json):(res.text||''),bodyBase64:res.b64||''}); });
+    info=await LS.start({port:8787}); running=true; return info; }
+  async function stop(){ const LS=Plug('LocalServer'); if(LS) await LS.stop(); running=false; }
+  async function refreshAddr(){ const LS=Plug('LocalServer'); if(LS){ const r=await LS.addresses(); info.addresses=r.addresses||[]; running=!!r.running; } return info; }
+  return {merge,route,start,stop,newCode,refreshAddr,db,save,get running(){return running;},get info(){return info;},available:()=>!!Plug('LocalServer')};
+})();
+
+/* Minimal zip writer (stored, no compression) for update bundles */
+const Zip = { crcT:null,
+  crc(b){ if(!this.crcT){ this.crcT=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; this.crcT[n]=c>>>0; } }
+    let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=this.crcT[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; },
+  store(files){ const parts=[], cen=[]; let off=0;
+    for(const f of files){ const name=new TextEncoder().encode(f.name), crc=this.crc(f.data), sz=f.data.length;
+      const lh=new DataView(new ArrayBuffer(30)); lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true); lh.setUint16(8,0,true);
+      lh.setUint32(14,crc,true); lh.setUint32(18,sz,true); lh.setUint32(22,sz,true); lh.setUint16(26,name.length,true);
+      parts.push(new Uint8Array(lh.buffer),name,f.data);
+      const ch=new DataView(new ArrayBuffer(46)); ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0x0800,true);
+      ch.setUint32(16,crc,true); ch.setUint32(20,sz,true); ch.setUint32(24,sz,true); ch.setUint16(28,name.length,true); ch.setUint32(42,off,true);
+      cen.push(new Uint8Array(ch.buffer),name); off+=30+name.length+sz; }
+    const cenLen=cen.reduce((a,p)=>a+p.length,0), end=new DataView(new ArrayBuffer(22));
+    end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true); end.setUint32(12,cenLen,true); end.setUint32(16,off,true);
+    const all=[...parts,...cen,new Uint8Array(end.buffer)], out=new Uint8Array(all.reduce((a,p)=>a+p.length,0)); let o=0; all.forEach(p=>{ out.set(p,o); o+=p.length; }); return out; }
+};
+
+/* UPDATES: phones pull a newer app version from the master and switch to it on next launch */
+const Updates = (() => {
+  let busy=false;
+  async function offer(ver){
+    if(busy||verCmp(ver,APP_VERSION)<=0||Store.get('upd:ready','')===ver) return;
+    const U=Plug('CapacitorUpdater'), c=Sync.cfg();
+    if(isNative()&&U){ busy=true;
+      try{ FX.toast(`⬇️ Downloading AppInside v${ver} from the master…`);
+        const b=await U.download({url:`${c.hub}/bundle/${ver}.zip`,version:ver}); await U.next({id:b.id}); Store.set('upd:ready',ver);
+        FX.toast(`✅ v${ver} ready. It starts next time you open AppInside.`,'#2ee6a8'); }
+      catch(e){ Store.set('upd:error',e.message); } finally{ busy=false; } return; }
+    if(Sync.served()){ Store.set('upd:ready',ver); FX.toast(`✨ Updating to v${ver}…`); setTimeout(()=>location.reload(),1500); }
+  }
+  async function checkOnline(url){ url=url.replace(/\/+$/,''); const v=await Net.req(url+'/version.json','GET');
+    if(!v||!v.version) throw new Error('No version.json found'); if(verCmp(v.version,APP_VERSION)<=0) return {latest:true,version:v.version};
+    const U=Plug('CapacitorUpdater'); if(!(isNative()&&U)) throw new Error('Updating needs the installed app');
+    const b=await U.download({url:url+'/bundle.zip',version:v.version}); await U.next({id:b.id}); Store.set('upd:ready',v.version); return {downloaded:v.version}; }
+  function init(){ const U=Plug('CapacitorUpdater'); if(isNative()&&U){ try{ U.notifyAppReady(); }catch(e){} }
+    if(Store.get('upd:ready','')&&verCmp(Store.get('upd:ready',''),APP_VERSION)<=0) Store.set('upd:ready',''); }
+  return {offer,checkOnline,init};
+})();
+
+/* ============ MINI-APP REGISTRY ============ */
+const Apps = [];
+function registerApp(def){ Apps.push(def); }
+
+/* ============ DATA LAB MINI-APP ============ */
+registerApp({
+  id:'datalab', name:'Data Lab', emoji:'📊', color:'linear-gradient(135deg,#6c8cff,#33c9a6)',
+  launch(root){
+    const NS='datalab';
+    let state = Store.get(NS, { records: [] });
+    let tab = 'add';
+    const save = () => Store.set(NS, state);
+    const today = () => new Date().toISOString().slice(0,10);
+    const fmt = n => (n==null||isNaN(n)) ? '–' : (Math.abs(n)>=1000 ? n.toLocaleString(undefined,{maximumFractionDigits:1}) : (+n.toFixed(2)).toString());
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    function render(){
+      root.innerHTML = `
+        <div class="tabs">
+          ${['add','analyse','data'].map(t=>`<button data-t="${t}" class="${t===tab?'on':''}">${{add:'Store',analyse:'Analyse',data:'Records'}[t]}</button>`).join('')}
+        </div><div id="pane"></div>`;
+      root.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();});
+      const pane = root.querySelector('#pane');
+      ({add:renderAdd, analyse:renderAnalyse, data:renderData})[tab](pane);
+    }
+
+    /* ---- STORE ---- */
+    function renderAdd(p){
+      const cats=[...new Set(state.records.map(r=>r.category))];
+      p.innerHTML = `
+        <div class="card"><h3>Add a record</h3>
+          <div class="row">
+            <div><label>Date</label><input id="fDate" type="date" value="${today()}"></div>
+            <div><label>Value</label><input id="fVal" type="number" step="any" inputmode="decimal" placeholder="e.g. 250"></div>
+          </div>
+          <label>Category</label><input id="fCat" list="catlist" placeholder="e.g. Food, Sales, Steps">
+          <datalist id="catlist">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+          <label>Note (optional)</label><input id="fNote" placeholder="anything">
+          <button class="btn" id="addBtn">Save record</button>
+          <div class="msg" id="m1"></div>
+        </div>
+        <div class="card"><h3>Import CSV</h3>
+          <p class="muted">Paste rows as <b>date,category,value,note</b>. A header row is skipped automatically.</p>
+          <textarea id="csv" placeholder="2026-11-01,Food,250,lunch&#10;2026-11-02,Travel,120,"></textarea>
+          <button class="btn ghost" id="impBtn">Import</button>
+          <button class="btn ghost" id="demoBtn">Load sample data</button>
+          <div class="msg" id="m2"></div>
+        </div>`;
+      p.querySelector('#addBtn').onclick=()=>{
+        const v=parseFloat(p.querySelector('#fVal').value), c=p.querySelector('#fCat').value.trim()||'General';
+        const d=p.querySelector('#fDate').value||today();
+        if(isNaN(v)){ p.querySelector('#m1').textContent='Enter a number for value.'; return; }
+        state.records.push({id:Date.now()+Math.random(), date:d, category:c, value:v, note:p.querySelector('#fNote').value.trim()});
+        save(); p.querySelector('#fVal').value=''; p.querySelector('#fNote').value='';
+        p.querySelector('#m1').textContent=`Saved. ${state.records.length} records stored.`;
+      };
+      p.querySelector('#impBtn').onclick=()=>{
+        const n=importCSV(p.querySelector('#csv').value);
+        p.querySelector('#m2').textContent = n ? `Imported ${n} records.` : 'No valid rows found.';
+      };
+      p.querySelector('#demoBtn').onclick=()=>{
+        const cats=['Food','Travel','Bills','Fun']; const base=new Date(); let n=0;
+        for(let i=29;i>=0;i--){ const d=new Date(base); d.setDate(d.getDate()-i);
+          cats.forEach((c,ci)=>{ if(Math.random()<.55){ state.records.push({id:Math.random(),date:d.toISOString().slice(0,10),category:c,value:Math.round((ci+1)*80+Math.random()*120+ (29-i)*2),note:'sample'}); n++; } }); }
+        save(); p.querySelector('#m2').textContent=`Added ${n} sample records.`;
+      };
+    }
+    function importCSV(text){
+      let n=0;
+      text.split(/\r?\n/).forEach(line=>{
+        const parts=line.split(',').map(s=>s.trim()); if(parts.length<3) return;
+        const v=parseFloat(parts[2]); if(isNaN(v)) return;
+        const d=/^\d{4}-\d{2}-\d{2}$/.test(parts[0])?parts[0]:today();
+        state.records.push({id:Math.random(),date:d,category:parts[1]||'General',value:v,note:parts.slice(3).join(',')}); n++;
+      });
+      if(n) save(); return n;
+    }
+
+    /* ---- ANALYSE ---- */
+    function analyse(recs){
+      const vals=recs.map(r=>r.value).sort((a,b)=>a-b), n=vals.length;
+      if(!n) return null;
+      const sum=vals.reduce((a,b)=>a+b,0), mean=sum/n;
+      const median = n%2 ? vals[(n-1)/2] : (vals[n/2-1]+vals[n/2])/2;
+      const sd = Math.sqrt(vals.reduce((a,v)=>a+(v-mean)**2,0)/(n>1?n-1:1));
+      // daily totals for trend
+      const byDay={}; recs.forEach(r=>byDay[r.date]=(byDay[r.date]||0)+r.value);
+      const days=Object.keys(byDay).sort(), ys=days.map(d=>byDay[d]);
+      let slope=null;
+      if(days.length>1){ const xs=days.map((_,i)=>i), mx=(days.length-1)/2, my=ys.reduce((a,b)=>a+b,0)/ys.length;
+        const num=xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0), den=xs.reduce((a,x)=>a+(x-mx)**2,0); slope=num/den; }
+      const byCat={}; recs.forEach(r=>byCat[r.category]=(byCat[r.category]||0)+r.value);
+      const outliers = sd>0 ? recs.filter(r=>Math.abs(r.value-mean)>2*sd) : [];
+      return {n,sum,mean,median,sd,min:vals[0],max:vals[n-1],days,ys,slope,byCat,outliers};
+    }
+    function renderAnalyse(p){
+      const cats=[...new Set(state.records.map(r=>r.category))].sort();
+      p.innerHTML = `
+        <div class="card"><div class="row">
+          <div><label>Category</label><select id="fc"><option value="">All</option>${cats.map(c=>`<option>${esc(c)}</option>`).join('')}</select></div>
+          <div><label>Period</label><select id="fp"><option value="0">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select></div>
+        </div></div><div id="out"></div>`;
+      const run=()=>{
+        const c=p.querySelector('#fc').value, days=+p.querySelector('#fp').value;
+        const cutoff = days ? new Date(Date.now()-days*864e5).toISOString().slice(0,10) : '';
+        const recs=state.records.filter(r=>(!c||r.category===c)&&(!cutoff||r.date>=cutoff));
+        const a=analyse(recs), out=p.querySelector('#out');
+        if(!a){ out.innerHTML='<div class="card muted">No records in this selection yet. Add some in the Store tab.</div>'; return; }
+        const trendTxt = a.slope==null ? 'Need at least 2 days of data to detect a trend.'
+          : `Daily total is ${a.slope>0?'rising':'falling'} by about <b>${fmt(Math.abs(a.slope))}</b> per day (linear fit over ${a.days.length} days).`;
+        const topCat=Object.entries(a.byCat).sort((x,y)=>y[1]-x[1])[0];
+        out.innerHTML = `
+          <div class="card"><h3>Summary</h3><div class="stats">
+            ${[['Records',a.n],['Total',a.sum],['Average',a.mean],['Median',a.median],['Min',a.min],['Max',a.max],['Std dev',a.sd],['Days',a.days.length],['Avg / day',a.sum/a.days.length]]
+              .map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${fmt(v)}</div></div>`).join('')}
+          </div></div>
+          <div class="card"><h3>Insights</h3>
+            <div class="insight">${trendTxt}</div>
+            ${!c?`<div class="insight">Largest category: <b>${esc(topCat[0])}</b> — ${fmt(topCat[1]/a.sum*100)}% of total.</div>`:''}
+            <div class="insight">${a.outliers.length?`${a.outliers.length} unusual value(s) more than 2 std dev from the average: ${a.outliers.slice(0,3).map(r=>`${fmt(r.value)} on ${r.date}`).join(', ')}`:'No unusual values (none beyond 2 std dev).'}</div>
+          </div>
+          <div class="card"><h3>Daily total over time</h3><canvas id="line"></canvas></div>
+          ${!c?`<div class="card"><h3>By category</h3><canvas id="bar"></canvas></div>`:''}`;
+        lineChart(out.querySelector('#line'), a.days, a.ys, a.slope);
+        if(!c) barChart(out.querySelector('#bar'), Object.entries(a.byCat).sort((x,y)=>y[1]-x[1]));
+      };
+      p.querySelector('#fc').onchange=run; p.querySelector('#fp').onchange=run; run();
+    }
+
+    /* ---- RECORDS ---- */
+    function renderData(p){
+      const recs=[...state.records].sort((a,b)=>b.date.localeCompare(a.date));
+      p.innerHTML = `
+        <div class="card"><h3>${recs.length} stored records</h3>
+          ${recs.length?`<table><tr><th>Date</th><th>Category</th><th class="num">Value</th><th></th></tr>
+          ${recs.slice(0,200).map(r=>`<tr><td>${r.date.slice(5)}</td><td>${esc(r.category)}${r.note?`<div class="muted">${esc(r.note)}</div>`:''}</td><td class="num">${fmt(r.value)}</td><td><button class="x" data-id="${r.id}" aria-label="Delete">✕</button></td></tr>`).join('')}
+          </table>${recs.length>200?'<p class="muted">Showing latest 200.</p>':''}`:'<p class="muted">Nothing stored yet.</p>'}
+        </div>
+        <div class="card"><h3>Backup</h3>
+          <button class="btn ghost" id="cp">Copy all as CSV</button>
+          <button class="btn danger" id="clr">Delete all</button>
+          <div class="msg" id="m3"></div>
+        </div>`;
+      p.querySelectorAll('.x').forEach(b=>b.onclick=()=>{ state.records=state.records.filter(r=>String(r.id)!==b.dataset.id); save(); render(); });
+      p.querySelector('#cp').onclick=async()=>{
+        const csv='date,category,value,note\n'+state.records.map(r=>[r.date,r.category,r.value,r.note||''].join(',')).join('\n');
+        try{ await navigator.clipboard.writeText(csv); p.querySelector('#m3').textContent='Copied to clipboard.'; }
+        catch(e){ p.querySelector('#m3').textContent='Copy blocked here — select the text below instead.'; p.querySelector('#m3').insertAdjacentHTML('afterend',`<textarea readonly>${esc(csv)}</textarea>`); }
+      };
+      const clr=p.querySelector('#clr'); let armed=false;
+      clr.onclick=()=>{ if(!armed){ armed=true; clr.textContent='Tap again to confirm'; return; } state.records=[]; save(); render(); };
+    }
+
+    /* ---- CHARTS (plain canvas, no libraries) ---- */
+    function setup(cv){ const dpr=window.devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight;
+      cv.width=w*dpr; cv.height=h*dpr; const g=cv.getContext('2d'); g.scale(dpr,dpr); return {g,w,h}; }
+    function lineChart(cv, labels, ys, slope){
+      const {g,w,h}=setup(cv), pad={l:44,r:10,t:10,b:24}, max=Math.max(...ys)*1.1||1;
+      const X=i=>pad.l+(labels.length<2?0.5:i/(labels.length-1))*(w-pad.l-pad.r), Y=v=>h-pad.b-(v/max)*(h-pad.t-pad.b);
+      g.strokeStyle='#2b3250'; g.fillStyle='#9aa3c0'; g.font='11px sans-serif'; g.lineWidth=1;
+      for(let i=0;i<=4;i++){ const v=max*i/4; g.beginPath(); g.moveTo(pad.l,Y(v)); g.lineTo(w-pad.r,Y(v)); g.stroke(); g.fillText(fmt(v),4,Y(v)+4); }
+      g.fillText(labels[0].slice(5),pad.l,h-6); if(labels.length>1){ const t=labels.at(-1).slice(5); g.fillText(t,w-pad.r-g.measureText(t).width,h-6); }
+      g.strokeStyle='#6c8cff'; g.lineWidth=2.5; g.beginPath(); ys.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v))); g.stroke();
+      g.fillStyle='#6c8cff'; ys.forEach((v,i)=>{ g.beginPath(); g.arc(X(i),Y(v),2.5,0,7); g.fill(); });
+      if(slope!=null){ const my=ys.reduce((a,b)=>a+b,0)/ys.length, mx=(ys.length-1)/2;
+        g.setLineDash([5,4]); g.strokeStyle='#33c9a6'; g.lineWidth=1.5; g.beginPath();
+        g.moveTo(X(0),Y(my-slope*mx)); g.lineTo(X(ys.length-1),Y(my+slope*mx)); g.stroke(); g.setLineDash([]); }
+    }
+    function barChart(cv, entries){
+      cv.style.height=Math.max(80,entries.length*30+10)+'px';
+      const {g,w}=setup(cv), max=entries[0][1]||1, lw=90;
+      g.font='12px sans-serif';
+      entries.forEach(([k,v],i)=>{ const y=8+i*30, bw=(w-lw-60)*(v/max);
+        g.fillStyle='#9aa3c0'; g.fillText(k.length>12?k.slice(0,11)+'…':k,0,y+15);
+        g.fillStyle='#33c9a6'; g.beginPath(); g.roundRect ? g.roundRect(lw,y,Math.max(bw,2),20,4) : g.rect(lw,y,Math.max(bw,2),20); g.fill();
+        g.fillStyle='#eef0f8'; g.fillText(fmt(v),lw+bw+6,y+15); });
+    }
+
+    render();
+  }
+});
+
+/* ============ P&L MINI-APP ============ */
+registerApp({
+  id:'pnl', name:'P&L', emoji:'💹', color:'linear-gradient(135deg,#2ecc71,#1f8a5b)',
+  launch(root){
+    const NS='pnl';
+    let st=Store.get(NS,{days:{}, taxRate:30}); // days: { 'YYYY-MM-DD': {gross, charges, note} }
+    let tab='add', range=Store.get('pnl:range',{preset:'month',from:'',to:''});
+    const save=()=>Store.set(NS,st);
+    const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+    const today=()=>iso(new Date());
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const inr=n=>(n<0?'−':'')+'₹'+Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:2});
+    const cls=n=>n>0?'color:#33c9a6':n<0?'color:#ff7a7a':'';
+    const net=d=>(+d.gross||0)-(+d.charges||0);
+    const rate=()=>(+st.taxRate||0)/100;
+
+    function presetRange(p){
+      const t=new Date(), y=t.getFullYear(), m=t.getMonth();
+      if(p==='today') return [today(),today()];
+      if(p==='week'){ const s=new Date(t); s.setDate(t.getDate()-((t.getDay()+6)%7)); return [iso(s),today()]; }
+      if(p==='month') return [iso(new Date(y,m,1)),today()];
+      if(p==='lastmonth') return [iso(new Date(y,m-1,1)),iso(new Date(y,m,0))];
+      if(p==='fy'){ const fy=m>=3?y:y-1; return [iso(new Date(fy,3,1)),today()]; }
+      if(p==='custom') return [range.from||'0000-01-01',range.to||'9999-12-31'];
+      return ['0000-01-01','9999-12-31'];
+    }
+
+    function render(){
+      root.innerHTML=`<div class="tabs">${[['add','Add day'],['report','Report'],['import','Import']].map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div><div id="pane"></div>`;
+      root.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();});
+      const p=root.querySelector('#pane');
+      ({add:renderAdd,report:renderReport,import:renderImport})[tab](p);
+    }
+
+    /* ---- ADD A DAY ---- */
+    function renderAdd(p){
+      p.innerHTML=`<div class="card"><h3>Save today's P&L</h3>
+        <label>Date</label><input type="date" id="d" value="${today()}">
+        <div class="row">
+          <div><label>Gross P&L (₹, use − for loss)</label><input id="g" type="number" step="any" inputmode="decimal" placeholder="e.g. 5200 or -1800"></div>
+          <div><label>Charges & brokerage (₹)</label><input id="c" type="number" step="any" inputmode="decimal" placeholder="0"></div>
+        </div>
+        <label>Note (optional)</label><input id="n" placeholder="e.g. Nifty options">
+        <div id="prev" class="insight" style="margin-top:10px"></div>
+        <button class="btn" id="sv">Save day</button>
+        <div class="msg" id="m"></div></div>
+        <div class="card"><h3>Settings</h3><div class="row"><div><label>Tax on profit (%)</label><input id="tr" type="number" step="any" value="${st.taxRate}"></div>
+        <div><label>Monthly profit target (₹)</label><input id="tg" type="number" step="any" inputmode="decimal" placeholder="e.g. 50000" value="${st.target||''}"></div></div></div>`;
+      const g=p.querySelector('#g'), c=p.querySelector('#c'), d=p.querySelector('#d'), prev=p.querySelector('#prev'), m=p.querySelector('#m');
+      const load=()=>{ const e=st.days[d.value]; if(e){ g.value=e.gross; c.value=e.charges||''; p.querySelector('#n').value=e.note||''; m.textContent='This date already has an entry. Saving will replace it.'; } else { m.textContent=''; } upd(); };
+      const upd=()=>{ const nv=(parseFloat(g.value)||0)-(parseFloat(c.value)||0), tax=Math.max(nv,0)*rate();
+        prev.innerHTML=`Net: <b style="${cls(nv)}">${inr(nv)}</b> · Tax: <b>${inr(tax)}</b> · After tax: <b style="${cls(nv-tax)}">${inr(nv-tax)}</b>`; };
+      g.oninput=c.oninput=upd; d.onchange=load;
+      p.querySelector('#tr').onchange=e=>{ st.taxRate=parseFloat(e.target.value)||0; save(); upd(); };
+      p.querySelector('#tg').onchange=e=>{ st.target=parseFloat(e.target.value)||0; save(); FX.toast(st.target?`🎯 Target set: ${inr(st.target)} this month`:'Target cleared'); };
+      p.querySelector('#sv').onclick=()=>{
+        const gv=parseFloat(g.value); if(isNaN(gv)){ m.textContent='Enter the gross P&L.'; return; }
+        const prevBest=Math.max(...Object.entries(st.days).filter(([k])=>k!==d.value).map(([,e])=>net(e)),-Infinity);
+        st.days[d.value]={gross:gv,charges:parseFloat(c.value)||0,note:p.querySelector('#n').value.trim()}; save();
+        const nv=net(st.days[d.value]), streak=PnlStats.streak(st.days);
+        if(nv>0&&nv>prevBest&&prevBest>-Infinity){ FX.confetti(160); FX.toast(`🏆 New best day! ${inr(nv)}`,'#2ee6a8'); }
+        else if(nv>0){ FX.confetti(70); FX.toast(`💪 Green day: ${inr(nv)} · 🔥 ${streak}-day streak`,'#2ee6a8'); }
+        else if(nv<0){ FX.toast(`🛡️ Loss logged. Showing up keeps the streak: 🔥 ${streak}`,'#ff8a3d'); }
+        else FX.toast(`✅ Logged · 🔥 ${streak}-day streak`);
+        m.textContent=`Saved ${d.value}. ${Object.keys(st.days).length} days stored.`;
+      };
+      load();
+    }
+
+    /* ---- REPORT ---- */
+    function renderReport(p){
+      p.innerHTML=`<div class="card"><label>Period</label>
+        <select id="pr">${[['today','Today'],['week','This week'],['month','This month'],['lastmonth','Last month'],['fy','This financial year (Apr–Mar)'],['all','All time'],['custom','Custom dates']].map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>
+        <div class="row" id="cust" style="display:none"><div><label>From</label><input type="date" id="f"></div><div><label>To</label><input type="date" id="t"></div></div></div>
+        <div id="out"></div>`;
+      const pr=p.querySelector('#pr'), f=p.querySelector('#f'), t=p.querySelector('#t');
+      pr.value=range.preset; f.value=range.from; t.value=range.to;
+      const run=()=>{
+        range={preset:pr.value,from:f.value,to:t.value}; Store.set('pnl:range',range);
+        p.querySelector('#cust').style.display=pr.value==='custom'?'flex':'none';
+        const [a,b]=presetRange(pr.value);
+        const rows=Object.entries(st.days).filter(([dt])=>dt>=a&&dt<=b).sort((x,y)=>x[0].localeCompare(y[0]))
+          .map(([dt,e])=>{ const n=net(e), tax=Math.max(n,0)*rate(); return {dt,e,n,tax,after:n-tax}; });
+        const out=p.querySelector('#out');
+        if(!rows.length){ out.innerHTML='<div class="card muted">No days saved in this period.</div>'; return; }
+        const sum=k=>rows.reduce((s,r)=>s+r[k],0);
+        const tot=sum('n'), taxDaily=sum('tax'), taxNet=Math.max(tot,0)*rate();
+        const wins=rows.filter(r=>r.n>0), losses=rows.filter(r=>r.n<0);
+        const gp=wins.reduce((s,r)=>s+r.n,0), gl=losses.reduce((s,r)=>s+r.n,0);
+        const best=rows.reduce((x,r)=>r.n>x.n?r:x), worst=rows.reduce((x,r)=>r.n<x.n?r:x);
+        const charges=rows.reduce((s,r)=>s+(+r.e.charges||0),0);
+        out.innerHTML=`
+          <div class="card"><h3>${rows[0].dt} → ${rows.at(-1).dt}</h3>
+            <div class="stat" style="margin-bottom:8px"><div class="k">Net profit / loss</div><div class="v" style="font-size:24px;${cls(tot)}">${inr(tot)}</div></div>
+            <div class="stats">
+              <div class="stat"><div class="k">Tax ${st.taxRate}% (daily)</div><div class="v">${inr(taxDaily)}</div></div>
+              <div class="stat"><div class="k">After tax</div><div class="v" style="${cls(tot-taxDaily)}">${inr(tot-taxDaily)}</div></div>
+              <div class="stat"><div class="k">Charges</div><div class="v">${inr(charges)}</div></div>
+              <div class="stat"><div class="k">Profit days</div><div class="v" style="color:#33c9a6">${wins.length}</div></div>
+              <div class="stat"><div class="k">Loss days</div><div class="v" style="color:#ff7a7a">${losses.length}</div></div>
+              <div class="stat"><div class="k">Win rate</div><div class="v">${Math.round(wins.length/rows.length*100)}%</div></div>
+              <div class="stat"><div class="k">Total profits</div><div class="v" style="color:#33c9a6">${inr(gp)}</div></div>
+              <div class="stat"><div class="k">Total losses</div><div class="v" style="color:#ff7a7a">${inr(gl)}</div></div>
+              <div class="stat"><div class="k">Avg / day</div><div class="v" style="${cls(tot/rows.length)}">${inr(tot/rows.length)}</div></div>
+            </div>
+            <div class="insight">Best day ${best.dt}: <b style="${cls(best.n)}">${inr(best.n)}</b> · Worst day ${worst.dt}: <b style="${cls(worst.n)}">${inr(worst.n)}</b></div>
+            ${losses.length&&wins.length?`<div class="insight">Daily tax ignores loss days. If losses offset profits for the period, tax would be <b>${inr(taxNet)}</b> (after tax ${inr(tot-taxNet)}).</div>`:''}
+          </div>
+          <div class="card"><h3>Daily net & running total</h3><canvas id="ch"></canvas></div>
+          <div class="card"><h3>Day by day</h3><table>
+            <tr><th>Date</th><th class="num">Net</th><th class="num">Tax</th><th class="num">After tax</th><th></th></tr>
+            ${rows.slice().reverse().map(r=>`<tr><td>${r.dt.slice(5)}${r.e.note?`<div class="muted">${esc(r.e.note)}</div>`:''}</td>
+              <td class="num" style="${cls(r.n)}">${inr(r.n)}</td><td class="num">${inr(r.tax)}</td><td class="num" style="${cls(r.after)}">${inr(r.after)}</td>
+              <td><button class="x" data-d="${r.dt}" aria-label="Delete">✕</button></td></tr>`).join('')}
+            <tr><th>Total</th><th class="num" style="${cls(tot)}">${inr(tot)}</th><th class="num">${inr(taxDaily)}</th><th class="num" style="${cls(tot-taxDaily)}">${inr(tot-taxDaily)}</th><th></th></tr>
+          </table>
+          <button class="btn ghost" id="cp">Copy as CSV</button><div class="msg" id="cm"></div></div>`;
+        out.querySelectorAll('.x').forEach(b=>{ let armed=false; b.onclick=()=>{ if(!armed){armed=true;b.textContent='Sure?';return;} delete st.days[b.dataset.d]; save(); run(); }; });
+        out.querySelector('#cp').onclick=async()=>{
+          const csv='date,gross,charges,net,tax,after_tax,note\n'+rows.map(r=>[r.dt,r.e.gross,r.e.charges||0,r.n,r.tax.toFixed(2),r.after.toFixed(2),(r.e.note||'').replace(/,/g,' ')].join(',')).join('\n');
+          try{ await navigator.clipboard.writeText(csv); out.querySelector('#cm').textContent='Copied.'; }catch(e){ out.querySelector('#cm').insertAdjacentHTML('afterend',`<textarea readonly>${esc(csv)}</textarea>`); }
+        };
+        chart(out.querySelector('#ch'),rows);
+      };
+      pr.onchange=f.onchange=t.onchange=run; run();
+    }
+    function chart(cv,rows){
+      const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight; cv.width=w*dpr; cv.height=h*dpr;
+      const g=cv.getContext('2d'); g.scale(dpr,dpr);
+      let run=0; const cum=rows.map(r=>run+=r.n);
+      const vals=[...rows.map(r=>r.n),...cum,0], max=Math.max(...vals), min=Math.min(...vals), span=(max-min)||1;
+      const pad={l:8,r:8,t:10,b:20}, Y=v=>pad.t+(max-v)/span*(h-pad.t-pad.b);
+      const bw=(w-pad.l-pad.r)/rows.length, X=i=>pad.l+bw*i+bw/2;
+      g.strokeStyle='#2b3250'; g.beginPath(); g.moveTo(pad.l,Y(0)); g.lineTo(w-pad.r,Y(0)); g.stroke();
+      rows.forEach((r,i)=>{ g.fillStyle=r.n>=0?'#33c9a6':'#ff7a7a'; const y0=Y(0),y1=Y(r.n); g.fillRect(X(i)-Math.max(bw*0.35,1),Math.min(y0,y1),Math.max(bw*0.7,2),Math.max(Math.abs(y1-y0),1)); });
+      g.strokeStyle='#6c8cff'; g.lineWidth=2; g.beginPath(); cum.forEach((v,i)=>i?g.lineTo(X(i),Y(v)):g.moveTo(X(i),Y(v))); g.stroke();
+      g.fillStyle='#9aa3c0'; g.font='11px sans-serif';
+      g.fillText(rows[0].dt.slice(5),pad.l,h-5); const l=rows.at(-1).dt.slice(5); g.fillText(l,w-pad.r-g.measureText(l).width,h-5);
+      g.fillStyle='#6c8cff'; g.fillText('— running total',w/2-40,h-5);
+    }
+
+    /* ---- IMPORT (CSV / Excel statement) ---- */
+    function renderImport(p){
+      p.innerHTML=`<div class="card"><h3>Import a P&L statement</h3>
+        <p class="muted">CSV or Excel file (e.g. a broker P&L export). If the file has a date column, each row is added to its own date. If not, everything is totalled into the date below.</p>
+        <input type="file" id="file" accept=".csv,.xlsx,.xls,text/csv">
+        <label>Date to use if the file has no dates</label><input type="date" id="fd" value="${today()}">
+        <label>Or paste rows (date,net P&L,charges)</label>
+        <textarea id="paste" placeholder="2026-11-03,5200,340&#10;2026-11-04,-1800,210"></textarea>
+        <button class="btn" id="go">Preview</button><div class="msg" id="m"></div><div id="pv"></div></div>`;
+      const m=p.querySelector('#m'), pv=p.querySelector('#pv');
+      p.querySelector('#go').onclick=async()=>{
+        try{
+          let rows; const file=p.querySelector('#file').files[0], txt=p.querySelector('#paste').value.trim();
+          if(file) rows=await readFile(file); else if(txt) rows=parseCSV(txt); else { m.textContent='Choose a file or paste rows.'; return; }
+          const res=interpret(rows,p.querySelector('#fd').value);
+          if(!res.days.length){ m.textContent='Could not find a P&L column. Expected a header like "Net P&L", "Realized P&L" or "P&L".'; pv.innerHTML=''; return; }
+          m.textContent=`Found ${res.days.length} day(s) using column "${res.col}"${res.chCol?` and charges "${res.chCol}"`:''}.`;
+          pv.innerHTML=`<table><tr><th>Date</th><th class="num">Gross</th><th class="num">Charges</th><th class="num">Net</th></tr>
+            ${res.days.map(d=>`<tr><td>${d.date}${st.days[d.date]?' <span class="muted">(replaces)</span>':''}</td><td class="num">${inr(d.gross)}</td><td class="num">${inr(d.charges)}</td><td class="num" style="${cls(d.gross-d.charges)}">${inr(d.gross-d.charges)}</td></tr>`).join('')}</table>
+            <button class="btn" id="ok">Save these days</button>`;
+          pv.querySelector('#ok').onclick=()=>{ res.days.forEach(d=>st.days[d.date]={gross:d.gross,charges:d.charges,note:'imported'}); save(); m.textContent=`Saved ${res.days.length} day(s).`; pv.innerHTML=''; };
+        }catch(e){ m.textContent='Could not read that file: '+e.message; }
+      };
+    }
+    function parseCSV(t){ return t.split(/\r?\n/).filter(l=>l.trim()).map(l=>{ const out=[]; let cur='',q=false;
+      for(const ch of l){ if(ch==='"') q=!q; else if(ch===','&&!q){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out.map(s=>s.trim()); }); }
+    async function readFile(f){
+      if(/\.xlsx?$/i.test(f.name)){
+        if(!window.XLSX) await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=()=>rej(new Error('Excel reader needs internet')); document.head.appendChild(s); });
+        const wb=XLSX.read(await f.arrayBuffer(),{type:'array',cellDates:true}); const rows=[];
+        wb.SheetNames.forEach(n=>rows.push(...XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:false,dateNF:'yyyy-mm-dd'}).map(r=>r.map(c=>c==null?'':String(c).trim()))));
+        return rows;
+      }
+      return parseCSV(await f.text());
+    }
+    function toDate(s){
+      s=String(s||'').trim(); let m;
+      if(m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+      if(m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/)){ const y=m[3].length==2?'20'+m[3]:m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+      const d=new Date(s); return isNaN(d)||!/[a-z]/i.test(s)?null:iso(d);
+    }
+    const num=s=>{ const t=String(s||'').replace(/[₹,\s]/g,'').replace(/^\((.*)\)$/,'-$1'); return t===''||isNaN(t)?null:parseFloat(t); };
+    function interpret(rows,fallback){
+      // find a header row containing a P&L-like column
+      const pnlRe=/net\s*(realized\s*)?p\s*&?\s*l|realized\s*p\s*&?\s*l|^p\s*&?\s*l$|net\s*profit|profit|pnl/i, chRe=/charge|brokerage|fees/i, dRe=/date/i;
+      let hi=-1,ci=-1,chi=-1,di=-1;
+      for(let i=0;i<Math.min(rows.length,40)&&hi<0;i++){ const r=rows[i];
+        const pc=r.findIndex(c=>/net/i.test(c)&&pnlRe.test(c)); const anyP=pc>=0?pc:r.findIndex(c=>pnlRe.test(c)&&!/%/.test(c));
+        if(anyP>=0){ hi=i; ci=anyP; chi=r.findIndex(c=>chRe.test(c)); di=r.findIndex(c=>dRe.test(c)); } }
+      if(hi<0){ // headerless paste: date,net,charges
+        const days={}; rows.forEach(r=>{ const d=toDate(r[0]), v=num(r[1]); if(d&&v!=null){ days[d]=days[d]||{gross:0,charges:0}; days[d].gross+=v; days[d].charges+=num(r[2])||0; } });
+        return {col:'column 2',chCol:'column 3',days:Object.entries(days).map(([date,v])=>({date,...v})).sort((a,b)=>a.date.localeCompare(b.date))};
+      }
+      const head=rows[hi], days={};
+      rows.slice(hi+1).forEach(r=>{ const v=num(r[ci]); if(v==null) return;
+        if(r.some(c=>/^total/i.test(c))) return;
+        const d=(di>=0&&toDate(r[di]))||fallback; days[d]=days[d]||{gross:0,charges:0}; days[d].gross+=v; if(chi>=0) days[d].charges+=num(r[chi])||0; });
+      // if the P&L column is already "net", charges are informational: don't subtract twice
+      const isNet=/net/i.test(head[ci]);
+      return {col:head[ci],chCol:chi>=0?head[chi]+(isNet?' (already included in net, not subtracted)':''):'',
+        days:Object.entries(days).map(([date,v])=>({date,gross:isNet?v.gross:v.gross,charges:isNet?0:v.charges})).sort((a,b)=>a.date.localeCompare(b.date))};
+    }
+    render();
+  }
+});
+
+/* ============ VOICE NOTES MINI-APP ============ */
+const VoiceAnalyser = (() => {
+  const CATS = {
+    Food:['food','lunch','dinner','breakfast','snack','chai','tea','coffee','khana','restaurant','swiggy','zomato','grocery','groceries','sabzi','खाना','चाय','नाश्ता'],
+    Travel:['travel','uber','ola','auto','cab','taxi','bus','train','metro','petrol','diesel','fuel','flight','rapido','पेट्रोल','ऑटो','किराया गाड़ी'],
+    Bills:['bill','electricity','bijli','rent','kiraya','recharge','wifi','internet','emi','gas','water','बिजली','किराया','रिचार्ज'],
+    Shopping:['shopping','clothes','shoes','amazon','flipkart','kapde','कपड़े'],
+    Health:['medicine','doctor','hospital','dawai','dawa','gym','pharmacy','दवाई','डॉक्टर'],
+    Fun:['movie','party','game','netflix','outing','trip','फिल्म'],
+    Income:['salary','received','got paid','earned','income','mila','मिला','तनख्वाह']
+  };
+  const POS=['good','great','happy','awesome','nice','excellent','love','accha','achha','badhiya','khush','mast','अच्छा','खुश','बढ़िया'];
+  const NEG=['bad','sad','angry','tired','worried','stress','problem','upset','bura','pareshan','thak','बुरा','परेशान','थका'];
+  const TODO=/(remind|need to|have to|must |to do|todo|don't forget|karna hai|karna h\b|yaad|करना है|याद)/i;
+  const STOP=new Set('the a an and or but to of in on at for with is was i me my it this that have has had be am are were so then also just spent paid rs rupees today yesterday got about feeling aaj bahut hoon need pay aur ka ki ke ko hai tha main mera maine se par bhi'.split(' '));
+  const MONTHS=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  const iso=d=>new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  const has=(t,w)=>(' '+t.replace(/[^\p{L}\p{M}\d]+/gu,' ')+' ').includes(' '+w+' ')||(/[^\x00-\x7F]/.test(w)&&t.includes(w));
+
+  function findDate(t,future){
+    const now=new Date(), d=new Date(now);
+    let m;
+    if(m=t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/)){
+      const y=m[3]?(m[3].length==2?2000+ +m[3]:+m[3]):now.getFullYear();
+      return {date:iso(new Date(y,+m[2]-1,+m[1])),text:m[0]};
+    }
+    if(m=t.match(new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s*('+MONTHS.join('|')+')[a-z]*\\b'))){
+      return {date:iso(new Date(now.getFullYear(),MONTHS.indexOf(m[2]),+m[1])),text:m[0]};
+    }
+    if(/day before yesterday|parso|परसों/.test(t)){ d.setDate(d.getDate()-2); return {date:iso(d),text:''}; }
+    if(/yesterday|\bkal\b|कल/.test(t)){ d.setDate(d.getDate()-1); return {date:iso(d),text:''}; }
+    const days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    for(let i=0;i<7;i++) if(t.includes(days[i])){ d.setDate(d.getDate()+(future?((i-d.getDay()+7)%7):-((d.getDay()-i+7)%7))); return {date:iso(d),text:''}; }
+    return {date:iso(now),text:''};
+  }
+  function catOf(t, extra){
+    for(const c of extra) if(t.includes(c.toLowerCase())) return c;
+    for(const [c,ws] of Object.entries(CATS)) if(ws.some(w=>has(t,w))) return c;
+    return null;
+  }
+  function analyse(raw, knownCats){
+    const text=raw.trim(), t=text.toLowerCase().replace(/[“”"]/g,'');
+    const extra=(knownCats||[]).filter(c=>!CATS[c]);
+    const nd=findDate(t);
+    const noteCat=catOf(t,extra);
+    const clauses=t.split(/[;!?\n]+|\.(?!\d)|,(?!\d)|\band\b|\baur\b|\bthen\b|\bphir\b|और|फिर/).map(s=>s.trim()).filter(Boolean);
+    const records=[];
+    clauses.forEach(cl=>{
+      const cd=findDate(cl,TODO.test(cl)), clean=cd.text?cl.replace(cd.text,' '):cl;
+      const re=/(?:₹|rs\.?|inr)?\s*(\d[\d,]*(?:\.\d+)?)\s*(k\b|thousand|hazaar|hazar|हज़ार|हजार|lakh|लाख)?/gi; let m;
+      while(m=re.exec(clean)){
+        let v=parseFloat(m[1].replace(/,/g,'')); if(isNaN(v)) continue;
+        const mult=(m[2]||'').toLowerCase();
+        if(/k|thousand|haz|हज/.test(mult)) v*=1000; else if(/lakh|लाख/.test(mult)) v*=100000;
+        const c=catOf(cl,extra)||noteCat||'General';
+        records.push({value:v, category:c, date:(cd.text||/yesterday|\bkal\b|कल|parso|परसों|day\b/.test(cl))?cd.date:nd.date,
+          type:(c==='Income'||/received|got paid|earned|mila|मिला/.test(cl))?'income':'expense', note:cl.slice(0,60), keep:true});
+      }
+    });
+    const words=t.replace(/[^\p{L}\p{M}\s]/gu,' ').split(/\s+/).filter(w=>w.length>2&&!STOP.has(w));
+    const freq={}; words.forEach(w=>freq[w]=(freq[w]||0)+1);
+    const keywords=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,6).map(x=>x[0]);
+    const pos=POS.filter(w=>has(t,w)).length, neg=NEG.filter(w=>has(t,w)).length;
+    const mood=pos>neg?'Positive':neg>pos?'Negative':'Neutral';
+    const todos=text.split(/[.;!?\n]+/).map(s=>s.trim()).filter(s=>TODO.test(s));
+    const firstSentence=text.split(/(?<=[.!?।])\s/)[0];
+    const summary=firstSentence.length>120?firstSentence.slice(0,117)+'…':firstSentence;
+    const total=records.reduce((a,r)=>a+(r.type==='expense'?r.value:0),0);
+    return {summary,records,keywords,mood,todos,date:nd.date,category:noteCat,total,words:text.split(/\s+/).filter(Boolean).length};
+  }
+  return {analyse};
+})();
+
+/* Speech-to-text: uses the native plugin in the installed app, the browser engine if available, else typing */
+const Speech = {
+  native(){ return window.Capacitor?.Plugins?.SpeechRecognition; },
+  web(){ return window.SpeechRecognition||window.webkitSpeechRecognition; },
+  available(){ return !!(this.native()||this.web()); },
+  async listen(lang, onText, onEnd){
+    const N=this.native();
+    if(N){
+      try{
+        const p=await N.requestPermissions?.(); if(p&&p.speechRecognition==='denied') throw new Error('Microphone permission denied');
+        await N.removeAllListeners?.();
+        // Android can fail if restarted immediately after a stop (plugin issue #124), so wait briefly
+        const since=Date.now()-(Speech._lastStop||0); if(since<800) await new Promise(r=>setTimeout(r,800-since));
+        let ended=false; const finish=err=>{ if(ended) return; ended=true; Speech._lastStop=Date.now(); onEnd(err); };
+        N.addListener('partialResults', d=>onText((d.matches||[])[0]||''));
+        N.addListener('listeningState', d=>{ if(d&&d.status==='stopped') finish(); });
+        await N.start({language:lang, partialResults:true, popup:false});
+        return { stop: async()=>{ try{ await N.stop(); }catch(e){} finish(); } };
+      }catch(e){ onEnd(e.message||String(e)); return null; }
+    }
+    const W=this.web();
+    if(W){
+      try{
+        const r=new W(); r.lang=lang; r.interimResults=true; r.continuous=true; let final='';
+        r.onresult=e=>{ let interim=''; for(let i=e.resultIndex;i<e.results.length;i++){ const s=e.results[i][0].transcript; e.results[i].isFinal?final+=s+' ':interim+=s; } onText(final+interim); };
+        r.onerror=e=>onEnd(e.error==='not-allowed'?'Microphone is blocked in this view. It works in the installed app.':'Mic error: '+e.error);
+        r.onend=()=>onEnd(); r.start();
+        return { stop:()=>r.stop() };
+      }catch(e){ onEnd('Microphone is not available here.'); return null; }
+    }
+    onEnd('Voice input works in the installed app. Type your note for now.'); return null;
+  }
+};
+
+registerApp({
+  id:'voice', name:'Voice Notes', emoji:'🎙️', color:'linear-gradient(135deg,#ff6b8b,#f4a259)',
+  launch(root){
+    const NS='voicenotes';
+    let notes=Store.get(NS,[]), lang=Store.get('voice:lang','en-IN'), view='new', draft=null, session=null;
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const fmt=n=>(+(+n).toFixed(2)).toLocaleString();
+
+    function render(){
+      root.innerHTML=`<div class="tabs">
+        <button data-v="new" class="${view!=='list'?'on':''}">New note</button>
+        <button data-v="list" class="${view==='list'?'on':''}">Saved (${notes.length})</button></div><div id="pane"></div>`;
+      root.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ stopMic(); view=b.dataset.v; if(view==='new') draft=null; render(); });
+      const p=root.querySelector('#pane');
+      view==='list'?renderList(p):(draft?renderReview(p):renderNew(p));
+    }
+
+    function renderNew(p){
+      p.innerHTML=`<div class="card"><h3>Speak or type a note</h3>
+        <div class="row"><div><label>Language</label><select id="lang">
+          <option value="en-IN">English (India)</option><option value="hi-IN">Hindi</option><option value="en-US">English (US)</option></select></div></div>
+        <button class="btn" id="mic" style="width:100%;font-size:16px">🎙️ Start recording</button>
+        <div class="msg" id="micMsg"></div>
+        <label>Transcript (you can edit it)</label>
+        <textarea id="tx" placeholder="e.g. Spent 250 on lunch and 120 on auto yesterday. Need to pay electricity bill on Friday."></textarea>
+        <button class="btn" id="an">Analyse ›</button>
+        <button class="btn ghost" id="ex">Try an example</button>
+      </div>
+      <p class="muted">Nothing is saved until you review the analysis and tap Save.</p>`;
+      const sel=p.querySelector('#lang'); sel.value=lang; sel.onchange=()=>{ lang=sel.value; Store.set('voice:lang',lang); };
+      const tx=p.querySelector('#tx'), mic=p.querySelector('#mic'), msg=p.querySelector('#micMsg');
+      if(!Speech.available()) msg.textContent='Voice input switches on in the installed app. Type for now.';
+      mic.onclick=async()=>{
+        if(session){ stopMic(); return; }
+        const before=tx.value?tx.value.trim()+' ':'';
+        mic.textContent='⏹ Stop recording'; mic.style.background='#ff7a7a'; msg.textContent='Listening…';
+        session=await Speech.listen(lang, text=>{ tx.value=before+text; }, err=>{
+          session=null; mic.textContent='🎙️ Start recording'; mic.style.background=''; msg.textContent=err||'Stopped. Check the text, then Analyse.';
+        });
+      };
+      p.querySelector('#ex').onclick=()=>{ tx.value='Spent 250 on lunch and 120 on auto yesterday. Got salary 45k today, feeling happy. Need to pay electricity bill 1,800 on Friday.'; };
+      p.querySelector('#an').onclick=()=>{
+        stopMic(); const text=tx.value.trim(); if(!text){ msg.textContent='Record or type something first.'; return; }
+        const cats=[...new Set(Store.get('datalab',{records:[]}).records.map(r=>r.category))];
+        draft={text, lang, a:VoiceAnalyser.analyse(text,cats)}; render();
+      };
+    }
+    function stopMic(){ if(session){ try{session.stop();}catch(e){} session=null; } }
+
+    function renderReview(p){
+      const a=draft.a, recs=a.records;
+      p.innerHTML=`<div class="card"><h3>Review before saving</h3>
+          <div class="insight">${esc(draft.text)}</div>
+          <div class="stats" style="margin-top:10px">
+            <div class="stat"><div class="k">Mood</div><div class="v">${a.mood}</div></div>
+            <div class="stat"><div class="k">Words</div><div class="v">${a.words}</div></div>
+            <div class="stat"><div class="k">Amounts</div><div class="v">${recs.length}</div></div>
+          </div>
+          <label>Summary</label><input id="sum" value="${esc(a.summary)}">
+          <label>Keywords</label><div class="muted">${a.keywords.map(esc).join(' · ')||'–'}</div>
+          ${a.todos.length?`<label>To-dos found</label>${a.todos.map(t=>`<div class="insight">☐ ${esc(t)}</div>`).join('')}`:''}
+        </div>
+        <div class="card"><h3>Amounts found → Data Lab</h3>
+          ${recs.length?recs.map((r,i)=>`<div style="border-top:1px solid var(--line);padding-top:8px;margin-top:8px">
+            <label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input type="checkbox" data-i="${i}" class="keep" ${r.keep?'checked':''} style="width:auto"> Add to Data Lab <span class="muted">(${r.type})</span></label>
+            <div class="row"><div><label>Value</label><input type="number" step="any" data-i="${i}" data-f="value" value="${r.value}"></div>
+            <div><label>Category</label><input data-i="${i}" data-f="category" value="${esc(r.category)}"></div></div>
+            <label>Date</label><input type="date" data-i="${i}" data-f="date" value="${r.date}"></div>`).join('')
+          :'<p class="muted">No amounts detected. The note will be saved as text only.</p>'}
+        </div>
+        <button class="btn" id="save">Save</button> <button class="btn ghost" id="back">‹ Edit transcript</button> <button class="btn danger" id="disc">Discard</button>`;
+      p.querySelectorAll('input[data-f]').forEach(inp=>inp.oninput=()=>{ const r=recs[inp.dataset.i]; r[inp.dataset.f]=inp.dataset.f==='value'?parseFloat(inp.value):inp.value; });
+      p.querySelectorAll('.keep').forEach(c=>c.onchange=()=>recs[c.dataset.i].keep=c.checked);
+      p.querySelector('#back').onclick=()=>{ const t=draft.text; draft=null; render(); root.querySelector('#tx').value=t; };
+      p.querySelector('#disc').onclick=()=>{ draft=null; render(); };
+      p.querySelector('#save').onclick=()=>{
+        a.summary=p.querySelector('#sum').value;
+        const kept=recs.filter(r=>r.keep&&!isNaN(r.value));
+        if(kept.length){ const dl=Store.get('datalab',{records:[]});
+          kept.forEach(r=>dl.records.push({id:Date.now()+Math.random(),date:r.date,category:r.category||'General',value:r.value,note:'🎙️ '+r.note}));
+          Store.set('datalab',dl); }
+        notes.unshift({id:Date.now(),created:new Date().toISOString(),text:draft.text,lang:draft.lang,summary:a.summary,mood:a.mood,keywords:a.keywords,todos:a.todos,added:kept.length});
+        Store.set(NS,notes); draft=null; view='list'; render();
+        root.querySelector('#pane').insertAdjacentHTML('afterbegin',`<div class="msg">Saved${kept.length?` · ${kept.length} record(s) added to Data Lab`:''}.</div>`);
+      };
+    }
+
+    function renderList(p){
+      if(!notes.length){ p.innerHTML='<div class="card muted">No saved notes yet.</div>'; return; }
+      const moods={Positive:0,Neutral:0,Negative:0}; notes.forEach(n=>moods[n.mood]++);
+      const allK={}; notes.forEach(n=>n.keywords.forEach(k=>allK[k]=(allK[k]||0)+1));
+      p.innerHTML=`<div class="card"><h3>Across all notes</h3><div class="stats">
+          ${Object.entries(moods).map(([k,v])=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('')}</div>
+          <label>Most frequent topics</label><div class="muted">${Object.entries(allK).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>esc(x[0])+' ('+x[1]+')').join(' · ')}</div></div>
+        ${notes.map(n=>`<div class="card"><div class="muted">${new Date(n.created).toLocaleString([], {dateStyle:'medium',timeStyle:'short'})} · ${n.mood}${n.added?` · ${n.added} → Data Lab`:''}</div>
+          <div style="margin:6px 0;font-weight:600">${esc(n.summary)}</div>
+          <details><summary class="muted">Full note</summary><p>${esc(n.text)}</p></details>
+          ${n.todos.map(t=>`<div class="insight">☐ ${esc(t)}</div>`).join('')}
+          <button class="btn danger" data-del="${n.id}" style="padding:6px 10px;font-size:13px">Delete</button></div>`).join('')}`;
+      p.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ notes=notes.filter(n=>String(n.id)!==b.dataset.del); Store.set(NS,notes); render(); });
+    }
+    render();
+  }
+});
+
+/* ============ MUSIC ENGINE (owned by the shell so music keeps playing across mini-apps) ============ */
+const Music = (() => {
+  const audio = new Audio(); audio.preload='metadata';
+  let tracks=[], queue=[], idx=-1, shuffle=Store.get('music:shuffle',false), repeat=Store.get('music:repeat','all'), db=null, url=null;
+  const subs=new Set(); const emit=()=>subs.forEach(f=>{ try{f();}catch(e){} });
+  // IndexedDB keeps the song files (localStorage is too small for audio)
+  const ready = new Promise(res=>{
+    try{
+      const r=indexedDB.open('appinside-music',1);
+      r.onupgradeneeded=()=>r.result.createObjectStore('tracks',{keyPath:'id'});
+      r.onsuccess=()=>{ db=r.result; const all=[]; const c=db.transaction('tracks').objectStore('tracks').openCursor();
+        c.onsuccess=e=>{ const cur=e.target.result; if(cur){ const {blob,...meta}=cur.value; all.push(meta); cur.continue(); } else { tracks=all.sort((a,b)=>a.added-b.added); rebuild(); res(); } };
+        c.onerror=()=>res(); };
+      r.onerror=()=>res();
+    }catch(e){ res(); }
+  });
+  const mem={}; // fallback when IndexedDB is unavailable: songs last for this session only
+  const tx=mode=>db.transaction('tracks',mode).objectStore('tracks');
+  function parseName(fn){ const base=fn.replace(/\.[^.]+$/,'').replace(/_/g,' ').trim(); const m=base.split(/\s+-\s+/);
+    return m.length>1?{artist:m[0].trim(),title:m.slice(1).join(' - ').trim()}:{artist:'Unknown artist',title:base}; }
+  function duration(blob){ return new Promise(res=>{ const a=new Audio(), u=URL.createObjectURL(blob); a.preload='metadata';
+    a.onloadedmetadata=()=>{ res(isFinite(a.duration)?a.duration:0); URL.revokeObjectURL(u); }; a.onerror=()=>{ res(0); URL.revokeObjectURL(u); }; a.src=u; }); }
+  const CAP=70*1024*1024; // songs budget so the whole app stays under 100 MB
+  const used=()=>tracks.reduce((a,t)=>a+(t.size||0),0);
+  async function add(files){
+    let n=0, skipped=0;
+    for(const f of files){ if(!/^audio\//.test(f.type)&&!/\.(mp3|m4a|aac|wav|ogg|oga|flac|opus|webm)$/i.test(f.name)) continue;
+      if(used()+f.size>CAP){ skipped++; continue; }
+      const meta={id:Date.now()+'-'+Math.random().toString(36).slice(2),...parseName(f.name),file:f.name,size:f.size,added:Date.now()+n,dur:await duration(f)};
+      if(db){ try{ await new Promise((res,rej)=>{ const r=tx('readwrite').put({...meta,blob:f}); r.onsuccess=res; r.onerror=()=>rej(r.error); }); }
+        catch(e){ mem[meta.id]=f; } } else mem[meta.id]=f;
+      tracks.push(meta); n++; }
+    rebuild(); emit(); return {n,skipped};
+  }
+  function getBlob(id){ if(mem[id]) return Promise.resolve(mem[id]); if(!db) return Promise.resolve(null);
+    return new Promise(res=>{ const r=tx('readonly').get(id); r.onsuccess=()=>res(r.result&&r.result.blob); r.onerror=()=>res(null); }); }
+  function rebuild(){ const cur=queue[idx]; queue=tracks.map(t=>t.id);
+    if(shuffle){ for(let i=queue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
+      if(cur){ queue=[cur,...queue.filter(x=>x!==cur)]; } }
+    idx=cur?queue.indexOf(cur):-1; }
+  async function playId(id){
+    const i=queue.indexOf(id); if(i<0) return; idx=i;
+    const blob=await getBlob(id); if(!blob){ emit(); return; }
+    if(url) URL.revokeObjectURL(url); url=URL.createObjectURL(blob); audio.src=url;
+    try{ await audio.play(); }catch(e){}
+    session(); emit();
+  }
+  function current(){ return tracks.find(t=>t.id===queue[idx]); }
+  function next(auto){ if(!queue.length) return; if(auto&&repeat==='one'){ audio.currentTime=0; audio.play(); return; }
+    if(idx>=queue.length-1){ if(auto&&repeat==='off'){ emit(); return; } return playId(queue[0]); } playId(queue[idx+1]); }
+  function prev(){ if(audio.currentTime>3){ audio.currentTime=0; return; } if(idx>0) playId(queue[idx-1]); else if(queue.length) playId(queue[queue.length-1]); }
+  function toggle(){ if(!audio.src){ if(queue.length) playId(queue[0]); return; } audio.paused?audio.play():audio.pause(); }
+  async function remove(id){ if(current()?.id===id){ audio.pause(); audio.removeAttribute('src'); }
+    tracks=tracks.filter(t=>t.id!==id); delete mem[id]; if(db) try{ tx('readwrite').delete(id); }catch(e){} rebuild(); emit(); }
+  function session(){ const t=current(); if(!t||!('mediaSession' in navigator)) return;
+    try{ navigator.mediaSession.metadata=new MediaMetadata({title:t.title,artist:t.artist,album:'AppInside'});
+      navigator.mediaSession.setActionHandler('play',()=>audio.play()); navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
+      navigator.mediaSession.setActionHandler('nexttrack',()=>next()); navigator.mediaSession.setActionHandler('previoustrack',()=>prev()); }catch(e){} }
+  audio.addEventListener('ended',()=>next(true));
+  ['play','pause','loadedmetadata'].forEach(ev=>audio.addEventListener(ev,emit));
+  return { audio, ready, add, playId, next, prev, toggle, remove, current, subscribe:f=>{subs.add(f);return()=>subs.delete(f);},
+    get tracks(){return tracks;}, used, CAP, get shuffle(){return shuffle;}, get repeat(){return repeat;}, persistent:()=>!!db,
+    setShuffle(v){ shuffle=v; Store.set('music:shuffle',v); rebuild(); emit(); },
+    cycleRepeat(){ repeat={all:'one',one:'off',off:'all'}[repeat]; Store.set('music:repeat',repeat); emit(); } };
+})();
+const mmss=s=>!isFinite(s)||s<0?'0:00':Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+
+registerApp({
+  id:'music', name:'Music', emoji:'🎵', color:'linear-gradient(135deg,#8c6cff,#ff6b8b)',
+  launch(root){
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    let q='', seeking=false;
+    root.innerHTML=`
+      <div class="card" id="np"></div>
+      <div class="card"><h3>Your library</h3>
+        <label class="btn" style="display:block;text-align:center">＋ Add songs from phone<input type="file" id="fi" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac,.opus" multiple style="display:none"></label>
+        <div class="msg" id="am"></div><div id="meter" style="margin-top:6px"></div>
+        <input id="q" placeholder="Search songs or artists" style="margin-top:6px">
+        <div id="list"></div></div>
+      <p class="muted" id="pn"></p>`;
+    const np=root.querySelector('#np'), list=root.querySelector('#list');
+    function drawNow(){
+      const t=Music.current(), a=Music.audio;
+      if(!t){ np.innerHTML=`<h3>Now playing</h3><p class="muted">${Music.tracks.length?'Tap a song to start.':'Add songs to start listening.'}</p>`; return; }
+      np.innerHTML=`<div style="text-align:center"><div style="font-size:54px;margin:4px 0">🎵</div>
+        <div style="font-weight:700;font-size:17px">${esc(t.title)}</div><div class="muted">${esc(t.artist)}</div></div>
+        <input type="range" id="sk" min="0" max="${a.duration||t.dur||0}" step="0.5" value="${a.currentTime}" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between" class="muted"><span id="ct">${mmss(a.currentTime)}</span><span>${mmss(a.duration||t.dur)}</span></div>
+        <div class="pc">
+          <button id="sh" class="tog ${Music.shuffle?'on':''}" aria-label="Shuffle">🔀</button>
+          <button id="pv" aria-label="Previous">⏮</button>
+          <button id="pp" class="big" aria-label="Play or pause">${a.paused?'▶️':'⏸'}</button>
+          <button id="nx" aria-label="Next">⏭</button>
+          <button id="rp" class="tog ${Music.repeat!=='off'?'on':''}" aria-label="Repeat">${Music.repeat==='one'?'🔂':'🔁'}</button>
+        </div>`;
+      const sk=np.querySelector('#sk');
+      sk.oninput=()=>{ seeking=true; np.querySelector('#ct').textContent=mmss(+sk.value); };
+      sk.onchange=()=>{ a.currentTime=+sk.value; seeking=false; };
+      np.querySelector('#pp').onclick=()=>Music.toggle(); np.querySelector('#pv').onclick=()=>Music.prev(); np.querySelector('#nx').onclick=()=>Music.next();
+      np.querySelector('#sh').onclick=()=>Music.setShuffle(!Music.shuffle); np.querySelector('#rp').onclick=()=>Music.cycleRepeat();
+    }
+    function drawList(){
+      const cur=Music.current()?.id, f=q.toLowerCase();
+      const items=Music.tracks.filter(t=>!f||(t.title+' '+t.artist).toLowerCase().includes(f));
+      list.innerHTML=items.length?items.map(t=>`<div class="track ${t.id===cur?'now':''}" data-id="${t.id}">
+          <span>${t.id===cur&&!Music.audio.paused?'🔊':'🎵'}</span>
+          <div class="nm"><div>${esc(t.title)}</div><div class="muted">${esc(t.artist)} · ${mmss(t.dur)}</div></div>
+          <button class="x" data-del="${t.id}" aria-label="Remove" style="background:none;border:0;color:var(--warn);font-size:15px;cursor:pointer">✕</button></div>`).join('')
+        :`<p class="muted">${Music.tracks.length?'No matches.':'No songs yet.'}</p>`;
+      list.querySelectorAll('.track').forEach(el=>el.onclick=e=>{ if(e.target.dataset.del) return; Music.playId(el.dataset.id); });
+      list.querySelectorAll('[data-del]').forEach(b=>{ let armed=false; b.onclick=e=>{ e.stopPropagation(); if(!armed){ armed=true; b.textContent='Remove?'; b.style.fontSize='12px'; return; } Music.remove(b.dataset.del); }; });
+      const mb=x=>(x/1048576).toFixed(1), u=Music.used(), pct=Math.min(100,u/Music.CAP*100);
+      root.querySelector('#meter').innerHTML=`<div style="display:flex;justify-content:space-between" class="muted"><span>Music storage</span><span>${mb(u)} MB of ${mb(Music.CAP)} MB</span></div>
+        <div style="height:6px;border-radius:3px;background:var(--line);margin-top:4px;overflow:hidden"><i style="display:block;height:100%;width:${pct}%;background:${pct>90?'var(--warn)':'var(--grad)'}"></i></div>`;
+      root.querySelector('#pn').textContent=`${Music.tracks.length} song(s). `+(Music.persistent()?'Songs are stored inside AppInside on this phone.':'Storage is blocked in this view, so songs last only until you close it.');
+    }
+    const redraw=()=>{ drawNow(); drawList(); };
+    root.querySelector('#fi').onchange=async e=>{ const m=root.querySelector('#am'); m.textContent='Adding…';
+      const {n,skipped}=await Music.add([...e.target.files]);
+      m.textContent=(n?`Added ${n} song(s).`:skipped?'':'No audio files found in that selection.')+(skipped?` ${skipped} skipped: the music library is full (70 MB limit keeps AppInside under 100 MB). Remove some songs to add more.`:'');
+      m.style.color=skipped?'var(--warn)':''; e.target.value=''; };
+    root.querySelector('#q').oninput=e=>{ q=e.target.value; drawList(); };
+    const unsub=Music.subscribe(redraw);
+    const tick=()=>{ if(!root.isConnected){ unsub(); Music.audio.removeEventListener('timeupdate',tick); return; }
+      if(seeking) return; const sk=np.querySelector('#sk'), ct=np.querySelector('#ct');
+      if(sk){ sk.max=Music.audio.duration||sk.max; sk.value=Music.audio.currentTime; } if(ct) ct.textContent=mmss(Music.audio.currentTime); };
+    Music.audio.addEventListener('timeupdate',tick);
+    Music.ready.then(redraw); redraw();
+  }
+});
+
+/* ============ SETTINGS: devices, sync, updates ============ */
+registerApp({
+  id:'settings', name:'Settings', emoji:'⚙️', color:'linear-gradient(135deg,#55607d,#2b3250)',
+  launch(root){
+    const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const ago=t=>{ if(!t) return 'never'; const s=Math.round((Date.now()-t)/1000); return s<60?'just now':s<3600?Math.round(s/60)+' min ago':s<86400?Math.round(s/3600)+' h ago':Math.round(s/86400)+' d ago'; };
+    let tick;
+    const onHub=()=>{ if(root.isConnected) render(); else window.removeEventListener('hub-change',onHub); };
+    window.addEventListener('hub-change',onHub);
+    function render(){
+      const c=Sync.cfg(), role=c.role;
+      root.innerHTML=`
+        <div class="card"><h3>This device</h3>
+          <div class="tabs" style="margin:0">
+            ${[['solo','Standalone'],['master','Master'],['child','Connect']].map(([k,l])=>`<button data-role="${k}" class="${role===k?'on':''}">${l}</button>`).join('')}
+          </div>
+          <p class="muted" style="margin:10px 0 0">${role==='master'?'This device keeps the master copy and shares data and updates with your other devices on the same Wi-Fi.'
+            :role==='child'?'This device syncs with your master whenever you are on the same Wi-Fi.':'Data stays on this device only.'}</p>
+        </div><div id="pane"></div>
+        <div class="card"><h3>About</h3><div class="stats">
+          <div class="stat"><div class="k">App version</div><div class="v">${APP_VERSION}</div></div>
+          <div class="stat"><div class="k">Update</div><div class="v" style="font-size:14px">${Store.get('upd:ready','')?'v'+esc(Store.get('upd:ready',''))+' ready':'Up to date'}</div></div>
+          <div class="stat"><div class="k">Unsynced</div><div class="v">${Sync.pendingCount()}</div></div></div></div>`;
+      root.querySelectorAll('[data-role]').forEach(b=>b.onclick=async()=>{
+        const r=b.dataset.role; if(r===role) return;
+        if(r==='master'&&!Hub.available()){ FX.toast('Master mode works in the installed Android app (e.g. your tablet)','#ff8a3d'); return; }
+        if(role==='master') await Hub.stop().catch(()=>{});
+        if(r==='solo') Sync.unpair();
+        else if(r==='master'){ Sync.setCfg({role:'master',lastSeq:0}); Sync.snapshot(); await startMaster(); await Sync.run(true); }
+        else Sync.setCfg({role:'child',hub:Sync.served()?location.origin:'',name:defaultName()});
+        render(); });
+      const p=root.querySelector('#pane');
+      if(role==='master') masterPane(p,c); else if(role==='child') childPane(p,c);
+    }
+    function defaultName(){ const ua=navigator.userAgent; return /iPhone/.test(ua)?'iPhone':/iPad/.test(ua)?'iPad':/Android/.test(ua)?(/Mobile/.test(ua)?'Android phone':'Android tablet'):'Computer'; }
+    async function startMaster(){ try{ await Hub.start(); if(Store.get('hub:awake',true)) Plug('LocalServer')?.keepAwake({on:true}); }catch(e){ FX.toast(e.message,'#ff5c7a'); } }
+    async function masterPane(p,c){
+      if(!Hub.running) await startMaster();
+      const info=await Hub.refreshAddr().catch(()=>Hub.info), d=Hub.db(), addr=(info.addresses||[]).map(a=>a+':8787');
+      const codeLive=d.code&&Date.now()<d.codeExp;
+      p.innerHTML=`
+        <div class="card"><h3>${Hub.running?'🟢 Master is running':'🔴 Master is stopped'}</h3>
+          <label>Address on your Wi-Fi</label>
+          <div style="font-size:22px;font-weight:800">${addr.length?addr.map(esc).join('<br>'):'Connect to Wi-Fi'}</div>
+          <p class="muted">Keep AppInside open on this device while others sync. iPhone: open <b>http://${esc(addr[0]||'address')}</b> in Safari, then Share → Add to Home Screen.</p>
+          <button class="btn ghost" id="tog">${Hub.running?'Stop master':'Start master'}</button>
+          <label style="display:flex;gap:8px;align-items:center;color:var(--text);margin-top:12px"><input type="checkbox" id="awake" style="width:auto" ${Store.get('hub:awake',true)?'checked':''}> Keep screen on while AppInside is open</label>
+        </div>
+        <div class="card"><h3>Pair a device</h3>
+          ${codeLive?`<div style="font-size:40px;font-weight:800;letter-spacing:.2em;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent">${d.code}</div>
+            <p class="muted" style="text-align:center">Enter this code on the other device · valid for <span id="left"></span></p>`
+            :'<p class="muted">Create a code, then enter it on the phone in Settings → Connect.</p>'}
+          <button class="btn" id="code">${codeLive?'New code':'Create pairing code'}</button>
+        </div>
+        <div class="card"><h3>Paired devices (${Object.keys(d.devices).length})</h3>
+          ${Object.entries(d.devices).map(([id,v])=>`<div class="track" style="cursor:default"><span>${/iPhone|iPad/.test(v.name)?'📱':'📲'}</span>
+            <div class="nm"><div>${esc(v.name)}</div><div class="muted">Last sync ${ago(v.seen)}${v.version?' · v'+esc(v.version):''}</div></div>
+            <button class="x" data-rm="${id}" style="background:none;border:0;color:var(--warn);cursor:pointer">Remove</button></div>`).join('')||'<p class="muted">None yet.</p>'}
+        </div>
+        <div class="card"><h3>Updates for all devices</h3>
+          <p class="muted">When this master gets a new version, every paired device downloads it the next time it's on the same Wi-Fi.</p>
+          <label>Online update address</label><input id="uurl" placeholder="https://github.com/USER/appinside/releases/download/latest" value="${esc(Store.get('upd:url','https://github.com/SUPREMEAJAX/AppInside/releases/download/latest'))}">
+          <button class="btn ghost" id="chk">Check online now</button><div class="msg" id="um"></div>
+        </div>`;
+      p.querySelector('#tog').onclick=async()=>{ if(Hub.running) await Hub.stop(); else await startMaster(); render(); };
+      p.querySelector('#awake').onchange=e=>{ Store.set('hub:awake',e.target.checked); Plug('LocalServer')?.keepAwake({on:e.target.checked}); };
+      p.querySelector('#code').onclick=()=>{ Hub.newCode(); render(); };
+      p.querySelectorAll('[data-rm]').forEach(b=>{ let armed=false; b.onclick=()=>{ if(!armed){ armed=true; b.textContent='Sure?'; return; } const dd=Hub.db(); delete dd.devices[b.dataset.rm]; Hub.save(dd); render(); }; });
+      p.querySelector('#uurl').onchange=e=>Store.set('upd:url',e.target.value.trim());
+      p.querySelector('#chk').onclick=async()=>{ const m=p.querySelector('#um'), u=p.querySelector('#uurl').value.trim(); if(!u){ m.textContent='Add the update address first.'; return; }
+        Store.set('upd:url',u); m.textContent='Checking…';
+        try{ const r=await Updates.checkOnline(u); m.textContent=r.latest?`You have the latest version (v${APP_VERSION}).`:`Downloaded v${r.downloaded}. Restart AppInside to switch; phones get it after that.`; }
+        catch(e){ m.textContent='Could not update: '+e.message; } };
+      clearInterval(tick); if(codeLive){ const left=()=>{ const el=p.querySelector('#left'); if(!el) return clearInterval(tick); const s=Math.max(0,Math.round((Hub.db().codeExp-Date.now())/1000)); el.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); if(!s) render(); }; left(); tick=setInterval(left,1000); }
+    }
+    function childPane(p,c){
+      if(!c.token){
+        p.innerHTML=`<div class="card"><h3>Connect to your master</h3>
+          <p class="muted">On the master (e.g. your tablet): Settings → Master → Create pairing code.</p>
+          ${Sync.served()?`<p class="muted">Master: <b>${esc(location.host)}</b></p>`:`<label>Master address</label><input id="h" inputmode="url" placeholder="e.g. 192.168.1.7:8787" value="${esc((c.hub||'').replace(/^https?:\/\//,''))}">`}
+          <label>Pairing code</label><input id="code" inputmode="numeric" maxlength="6" placeholder="6 digits" style="font-size:22px;letter-spacing:.2em">
+          <label>Name for this device</label><input id="nm" value="${esc(c.name||defaultName())}">
+          <button class="btn" id="go">Pair</button><div class="msg" id="m"></div></div>`;
+        p.querySelector('#go').onclick=async()=>{ const m=p.querySelector('#m'); m.style.color=''; m.textContent='Connecting…';
+          try{ await Sync.pair(Sync.served()?location.origin:p.querySelector('#h').value,p.querySelector('#code').value,p.querySelector('#nm').value.trim()||defaultName());
+            FX.confetti(80); FX.toast('🔗 Paired with master','#2ee6a8'); render(); }
+          catch(e){ m.style.color='var(--warn)'; m.textContent=e.message==='Master not reachable'||/fetch|network|connect/i.test(e.message)?'Can\'t reach the master. Same Wi-Fi? Is AppInside open on it?':e.message; } };
+        return; }
+      p.innerHTML=`<div class="card"><h3>${c.lastError?'🟠 Not connected right now':'🟢 Connected'}</h3>
+          <div class="stats">
+            <div class="stat"><div class="k">Master</div><div class="v" style="font-size:13px">${esc(c.hub.replace(/^https?:\/\//,''))}</div></div>
+            <div class="stat"><div class="k">Last sync</div><div class="v" style="font-size:14px">${ago(c.lastSync)}</div></div>
+            <div class="stat"><div class="k">Master app</div><div class="v" style="font-size:14px">${c.masterVersion?'v'+esc(c.masterVersion):'–'}</div></div></div>
+          ${c.lastError?`<p class="muted">${esc(c.lastError)}. Changes are kept and sync automatically when you're back on the same Wi-Fi.</p>`:''}
+          <button class="btn" id="now">Sync now</button> <button class="btn danger" id="un">Unpair</button><div class="msg" id="m"></div></div>`;
+      p.querySelector('#now').onclick=async()=>{ const m=p.querySelector('#m'); m.textContent='Syncing…'; const n=await Sync.run(true); render();
+        const m2=root.querySelector('#m'); if(m2) m2.textContent=n==null?'Could not reach the master.':n?`Synced ${n} change(s).`:'Everything is up to date.'; };
+      const un=p.querySelector('#un'); let armed=false; un.onclick=()=>{ if(!armed){ armed=true; un.textContent='Tap again to unpair'; return; } Sync.unpair(); render(); };
+    }
+    render();
+  }
+});
+
+/* Placeholders for future mini-apps */
+[['notes','Notes','📝','#f4a259'],['files','Files','🗂️','#8c6cff'],['store','App Store','🧩','#ff6b8b']].forEach(([id,name,emoji,color])=>registerApp({id,name,emoji,color,soon:true}));
+
+/* ============ SHELL / LAUNCHER ============ */
+const $=s=>document.querySelector(s);
+function home(){ $('#app').style.display='none'; const hm=$('#home'); hm.style.display='block'; hm.classList.remove('showing'); void hm.offsetWidth; hm.classList.add('showing'); if(typeof drawHome==='function') drawHome(); if(location.hash) history.replaceState(null,'',location.pathname); if(typeof drawMini==='function') drawMini(); }
+function openApp(id,silent){
+  const a=Apps.find(x=>x.id===id); if(!a||a.soon) return;
+  $('#home').style.display='none'; const ap=$('#app'); ap.style.display='flex'; if(!silent){ ap.classList.remove('opening'); void ap.offsetWidth; ap.classList.add('opening'); FX.buzz(10); } $('#appTitle').textContent=a.name;
+  const body=$('#appbody'); body.innerHTML=''; a.launch(body); location.hash=id; drawMini();
+}
+$('#grid').innerHTML = Apps.map(a=>`<button class="icon ${a.soon?'soon':''}" data-id="${a.id}">
+  <span class="tile" style="background:${a.color}">${a.emoji}</span>${a.name}${a.soon?'<span class="muted" style="font-size:10px">soon</span>':''}</button>`).join('');
+$('#grid').querySelectorAll('.icon').forEach(b=>b.onclick=()=>openApp(b.dataset.id));
+$('#backBtn').onclick=home;
+$('#storageNote').innerHTML = Store.persistent
+  ? '💾 Data is saved on this device and stays after you close the app.'
+  : '⚠️ Saving is blocked in this view, so data lasts only until you close it. The installed app saves permanently.';
+function drawMini(){
+  const t=Music.current(), a=Music.audio, inMusic=$('#app').style.display==='flex'&&location.hash==='#music';
+  const show=!!t&&!inMusic; $('#mini').style.display=show?'block':'none'; document.body.classList.toggle('has-mini',show);
+  if(!t) return; $('#mTitle').textContent=t.title; $('#mArtist').textContent=t.artist; $('#mPlay').textContent=a.paused?'▶️':'⏸';
+}
+Music.subscribe(drawMini); window.addEventListener('hashchange',drawMini);
+Music.audio.addEventListener('timeupdate',()=>{ const a=Music.audio; $('#mProg').style.width=(a.duration?a.currentTime/a.duration*100:0)+'%'; });
+$('#mPlay').onclick=()=>Music.toggle(); $('#mNext').onclick=()=>Music.next(); $('#mPrev').onclick=()=>Music.prev(); $('#mOpen').onclick=()=>openApp('music');
+const LINES=['Small wins, every single day.','Discipline is the edge nobody can copy.','Log it. Learn it. Level up.',
+  'Protect the downside. Let the upside run.','Consistency beats intensity.','One good process, repeated, builds everything.',
+  'Today is a fresh chart. Trade your plan.','Show up even on red days. That is the streak.','Focus on the next right move.',
+  'Calm mind, clear entries, clean exits.','Progress over perfection.','Your future self is watching. Make it proud.'];
+function drawHome(){
+  const h=new Date().getHours(), greet=h<5?'Still up':h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night';
+  $('#hello').innerHTML=`${greet},<br><span>let's win today.</span>`;
+  const st=Store.get('pnl',{days:{}}), days=st.days||{}, today=PnlStats.iso(new Date());
+  const inr=n=>(n<0?'−':'')+'₹'+Math.abs(n).toLocaleString('en-IN',{maximumFractionDigits:0});
+  const te=days[today], tn=te?PnlStats.net(te):null, streak=PnlStats.streak(days), mon=PnlStats.month(days), tgt=+st.target||0;
+  const pct=tgt?Math.max(0,Math.min(1,mon/tgt)):0, C=2*Math.PI*30;
+  const doy=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/864e5), line=LINES[doy%LINES.length];
+  const t=Music.current(), playing=t&&!Music.audio.paused;
+  $('#bento').innerHTML=`
+    <div class="w wide card today ${tn<0?'neg':''}" data-go="pnl"><div class="lbl">Today's P&L</div>
+      ${te?`<div class="big" style="color:${tn>=0?'var(--accent2)':'var(--warn)'}">${inr(tn)}</div><div class="sm">After ${st.taxRate??30}% tax: ${inr(tn-Math.max(tn,0)*(st.taxRate??30)/100)}</div>`
+        :`<div class="big">Log today ✍️</div><div class="sm">Tap to save today's result and keep your streak alive</div>`}</div>
+    <div class="w card" data-go="pnl"><div class="lbl">Streak</div><div class="big"><span class="flame">🔥</span>${streak}</div><div class="sm">${streak?'trading days logged':'start your streak today'}</div></div>
+    <div class="w card" data-go="pnl" style="display:flex;flex-direction:column;align-items:center"><div class="lbl" style="align-self:flex-start">Month goal</div>
+      <div style="position:relative;margin-top:4px"><svg class="ring" viewBox="0 0 76 76"><defs><linearGradient id="rg" x1="0" x2="1"><stop offset="0" stop-color="#7b6cff"/><stop offset="1" stop-color="#2ee6a8"/></linearGradient></defs>
+        <circle cx="38" cy="38" r="30" stroke="rgba(255,255,255,.12)"/><circle class="fg" cx="38" cy="38" r="30" stroke="url(#rg)" stroke-dasharray="${C}" stroke-dashoffset="${C}" data-off="${C*(1-pct)}"/></svg>
+        <div style="position:absolute;inset:0;display:grid;place-items:center;font-weight:800">${tgt?Math.round(pct*100)+'%':'🎯'}</div></div>
+      <div class="sm" style="text-align:center">${tgt?`${inr(mon)} of ${inr(tgt)}`:'Set a target in P&L'}</div></div>
+    <div class="w wide card" data-go="music" style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:30px">🎧</div><div style="flex:1;min-width:0"><div class="lbl">${t?(playing?'Now playing':'Paused'):'Focus music'}</div>
+      <div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t?`<span class="eq ${playing?'':'paused'}"><i></i><i></i><i></i></span>`+t.title.replace(/</g,'&lt;'):'Add your power playlist'}</div></div>
+      ${t?`<button class="btn" data-play style="margin:0;padding:10px 14px">${playing?'⏸':'▶️'}</button>`:''}</div>
+    <div class="w wide card"><div class="lbl">Today's fuel</div><div class="quote" style="margin-top:6px">${line}</div></div>`;
+  $('#bento').querySelectorAll('[data-go]').forEach(w=>w.onclick=e=>{ if(e.target.closest('[data-play]')){ Music.toggle(); return; } FX.buzz(10); openApp(w.dataset.go); });
+  requestAnimationFrame(()=>requestAnimationFrame(()=>$('#bento').querySelectorAll('.fg').forEach(c=>c.style.strokeDashoffset=c.dataset.off)));
+}
+Music.subscribe(()=>{ if($('#home').style.display!=='none') drawHome(); });
+const tick=()=>$('#clock').textContent=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); tick(); setInterval(tick,30000);
+Updates.init(); Sync.start(); if(Sync.cfg().role==='master'&&Hub.available()) Hub.start().then(()=>{ if(Store.get('hub:awake',true)) Plug('LocalServer').keepAwake({on:true}); }).catch(()=>{});
+drawHome(); Music.ready.then(()=>{ if($('#home').style.display!=='none') drawHome(); });
+if(location.hash.slice(1)) openApp(location.hash.slice(1));
+window.addEventListener('hashchange',()=>{ const h=location.hash.slice(1); h?openApp(h):home(); });
+</script>
+</body>
+</html>
